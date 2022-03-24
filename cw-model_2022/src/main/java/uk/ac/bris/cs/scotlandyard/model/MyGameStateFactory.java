@@ -190,14 +190,14 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 		@Override public GameState advance(Move move) {
 			// Checks if there's illegal moves
-			moves = getAvailableMoves();
+			getAvailableMoves();
 			if(!moves.contains(move)) throw new IllegalArgumentException("Illegal move: "+move);
 
 //			Pieces are the colored counters in the ScotlandYard game
-			Set<Piece> pieces = new HashSet<>();
-			List<Player> players = new ArrayList<>(detectives);
+			Set<Piece> remainingPieces = new HashSet<>();
+			Set<Player> players = new HashSet<>(detectives);
 //			filter players by remaining (i.e. can move in the round) if remaining has that piece
-			Set<Player> remainingPlayers = players
+			Set<Player> remainingDetectives = detectives
 					.stream()
 					.filter(x -> remaining.contains(x.piece()))
 					.collect(Collectors.toSet());
@@ -209,40 +209,49 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			if (move.commencedBy().isMrX()){
 				mrX = mrX.at(destination);
 				mrX = mrX.use(move.tickets());
-				var newEntry = addLogEntry(move,destination);
-				log = ImmutableList.copyOf(newEntry);
+				addLogEntry(move,destination);
 			}
 
-//			Current player with moves remaining
-			for(Player curr: remainingPlayers){
-				pieces.add(curr.piece());
+			// Current detectives that haven't moved
+			for(Player curr: remainingDetectives){
 				if (curr.piece().equals(move.commencedBy())){
+					// update player's attributes
 					players.remove(curr);
 					curr = curr.at(destination);
 					curr = curr.use(move.tickets());
 					players.add(curr);
 					mrX = mrX.give(move.tickets());
-//					if moved, remove current piece location on board (updated to new location)
-					pieces.remove(curr.piece());
 				}
+				else remainingPieces.add(curr.piece());
 			}
 
 //			all detectives have moved (=empty), board updates with remaining as pieces in new location
-			if (pieces.isEmpty()) {
-				Set<Piece> newPieces = new HashSet<>();
-				for (Player p : players) {
-					newPieces.add(p.piece());
-				}
-				newPieces.add(mrX.piece());
-				remaining = ImmutableSet.copyOf(newPieces);
-//				otherwise, remaining is just counters with moves left
-			} else{
-				remaining = ImmutableSet.copyOf(pieces);
+			if (remainingPieces.isEmpty()) {
+//				Set<Piece> newPieces = new HashSet<>();
+//				for (Player p : players) {
+//					newPieces.add(p.piece());
+//				}
+//				newPieces.add(mrX.piece());
+//				remaining = ImmutableSet.copyOf(newPieces);
+				resetRemaining(players);
+			}
+//			otherwise, remaining is updated with detectives that hasn't moved  yet
+			else{
+				remaining = ImmutableSet.copyOf(remainingPieces);
 			}
 
 			detectives = ImmutableList.copyOf(players);
 
 			return new MyGameState(setup,remaining,log,mrX,detectives);
+		}
+
+		public void resetRemaining(Set<Player> players){
+			Set<Piece> newPieces = new HashSet<>();
+			for (Player p : players) {
+				newPieces.add(p.piece());
+			}
+			newPieces.add(mrX.piece());
+			remaining = ImmutableSet.copyOf(newPieces);
 		}
 
 		public int getDestination(Move move){
@@ -261,7 +270,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return destination;
 		}
 
-		public ImmutableList<LogEntry> addLogEntry(Move move, int destination){
+		public void addLogEntry(Move move, int destination){
 			List<LogEntry> entry = new ArrayList<>(log);
 			var tickets = move.accept(new Visitor<List<Ticket>>() {
 				@Override
@@ -286,7 +295,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 				if (setup.moves.get(entry.size())) entry.add(LogEntry.reveal(t,destination));
 				else entry.add(LogEntry.hidden(t));
 			}
-			return ImmutableList.copyOf(entry);
+			log = ImmutableList.copyOf(entry);
 		}
 
 		@Override public Optional<Integer> getDetectiveLocation(Detective detective) {
@@ -321,9 +330,9 @@ public final class MyGameStateFactory implements Factory<GameState> {
 				moves = ImmutableSet.copyOf(new HashSet<>());
 				return moves;
 			}
-			Set<Player> players = new HashSet<>(detectives);
+//			Set<Player> players = new HashSet<>(detectives);
 			// Filters the current players that haven't moved yet
-			Set<Player> remainingPlayers = players
+			Set<Player> remainingPlayers = detectives
 					.stream()
 					.filter(x -> remaining.contains(x.piece()))
 					.collect(Collectors.toSet());
@@ -338,7 +347,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			}
 
 			for (Player player : remainingPlayers){
-				var initial = players
+				var initial = detectives
 						.stream()
 						.map(single -> (makeSingleMoves(setup,detectives, player, player.location())))
 						.flatMap(Collection::stream)
