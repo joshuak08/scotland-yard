@@ -120,8 +120,6 @@ public class GameStateGameOverTest extends ParameterisedModelTestBase {
 		state = state.advance(taxi(MRX, 103, 85));
 		// green then cuts MrX off by moving to 103, MrX is now cornered and cannot move
 		state = state.advance(taxi(GREEN, 102, 103));
-//		in advance, get available moves called.
-//		mrx moves should be 0;
 		assertGameIsOver(state);
 	}
 

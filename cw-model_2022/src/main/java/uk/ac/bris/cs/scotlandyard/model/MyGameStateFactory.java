@@ -55,7 +55,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			checkWinner();
 		}
 
-		private ImmutableSet<Piece> detectivePieces(List<Player> detectives) {
+		private ImmutableSet<Piece> detectiveToPieces(List<Player> detectives) {
 			var players = detectives
 					.stream()
 					.map(Player::piece)
@@ -67,7 +67,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			Set<Piece> xPiece = new HashSet<>();
 			xPiece.add(mrX.piece());
 			ImmutableSet<Piece> mrXPiece = ImmutableSet.copyOf(xPiece);
-			ImmutableSet<Piece> detectivesPieces = detectivePieces(detectives);
+			ImmutableSet<Piece> detectivesPieces = detectiveToPieces(detectives);
 
 			// If a detective moves into MrX location
 			checkDetectiveCaughtMrX();
@@ -91,7 +91,8 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 //				all moves used by detectives and mrX to move
 				if (setup.moves.size() == log.size()) winner = mrXPiece;
-			} else {
+			}
+			else {
 //				At the end of the round where mrX stuck, remaining detectives have no moves left (but green still has moves) and mrX still cornered so detectives win
 				getAvailableMoves();
 				if (moves.isEmpty()) winner = detectivesPieces;
@@ -330,20 +331,9 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			Set<SingleMove> singleMoves = new HashSet<>();
 			Set<DoubleMove> doubleMoves = new HashSet<>();
 
-//			extra piece must be mrx
-			if (remaining.size() > detectives.size()){
-				var initial = makeSingleMoves(setup,detectives,mrX, mrX.location());
-//              mrx # moves should not exceed max size of his travel log (can only double if not last round)
-//				# moves he can make minus travel log must be greater than two (double move)
-				if (setup.moves.size() - log.size() >= 2){
-					var initialD = makeDoubleMoves(setup,detectives,mrX, mrX.location());
-					doubleMoves.addAll(initialD);
-				}
-				singleMoves.addAll(initial);
-				moves =  ImmutableSet.<Move> builder()
-						.addAll(singleMoves)
-						.addAll(doubleMoves)
-						.build();
+//			If remaining has mrX (ie first move of the round)
+			if (remaining.contains(mrX.piece())){
+				moves = getMrXMoves(setup,remaining,log,mrX,detectives,singleMoves,doubleMoves,moves);
 				return moves;
 			}
 
@@ -361,19 +351,31 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			// Logic here a bit scuffed has something to do with making moves empty at end of advance if the rest of detectives cannot move
 			// for testGameNotOverIfMrXCorneredButCanStillMove
 			if (moves.isEmpty()){
-				var initial = makeSingleMoves(setup,detectives,mrX, mrX.location());
+				moves = getMrXMoves(setup,remaining,log,mrX,detectives,singleMoves,doubleMoves,moves);
+			}
+			return moves;
+		}
+
+		private static ImmutableSet<Move> getMrXMoves(GameSetup setup,
+													  ImmutableSet<Piece> remaining,
+													  ImmutableList<LogEntry> log,
+													  Player mrX,
+													  List<Player> detectives,
+													  Set<SingleMove> singleMoves,
+													  Set<DoubleMove> doubleMoves,
+													  ImmutableSet<Move> moves){
+			var initial = makeSingleMoves(setup,detectives,mrX, mrX.location());
 //              mrx # moves should not exceed max size of his travel log (can only double if not last round)
 //				# moves he can make minus travel log must be greater than two (double move)
-				if (setup.moves.size() - log.size() >= 2){
-					var initialD = makeDoubleMoves(setup,detectives,mrX, mrX.location());
-					doubleMoves.addAll(initialD);
-				}
-				singleMoves.addAll(initial);
-				moves =  ImmutableSet.<Move> builder()
-						.addAll(singleMoves)
-						.addAll(doubleMoves)
-						.build();
+			if (setup.moves.size() - log.size() >= 2){
+				var initialD = makeDoubleMoves(setup,detectives,mrX, mrX.location());
+				doubleMoves.addAll(initialD);
 			}
+			singleMoves.addAll(initial);
+			moves =  ImmutableSet.<Move> builder()
+					.addAll(singleMoves)
+					.addAll(doubleMoves)
+					.build();
 			return moves;
 		}
 
@@ -421,7 +423,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			Set<DoubleMove> availableMoves = new HashSet<>();
 			// If player is detective return as detective not supposed to have double moves
 			if (player.isDetective()) return availableMoves;
-			// If player is MrX but not double tickets return early
+			// If player is MrX but no double tickets return early
 			if (!player.has(Ticket.DOUBLE)) return availableMoves;
 
 			// Set containing possible first step move
@@ -461,6 +463,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			}
 			return availableMoves;
 		}
+
 	}
 
 
