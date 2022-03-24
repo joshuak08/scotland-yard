@@ -333,7 +333,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 //			If remaining has mrX (ie first move of the round)
 			if (remaining.contains(mrX.piece())){
-				moves = getMrXMoves(setup,remaining,log,mrX,detectives,singleMoves,doubleMoves,moves);
+				moves = getMrXMoves(singleMoves,doubleMoves);
 				return moves;
 			}
 
@@ -351,19 +351,12 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			// Logic here a bit scuffed has something to do with making moves empty at end of advance if the rest of detectives cannot move
 			// for testGameNotOverIfMrXCorneredButCanStillMove
 			if (moves.isEmpty()){
-				moves = getMrXMoves(setup,remaining,log,mrX,detectives,singleMoves,doubleMoves,moves);
+				moves = getMrXMoves(singleMoves,doubleMoves);
 			}
 			return moves;
 		}
 
-		private static ImmutableSet<Move> getMrXMoves(GameSetup setup,
-													  ImmutableSet<Piece> remaining,
-													  ImmutableList<LogEntry> log,
-													  Player mrX,
-													  List<Player> detectives,
-													  Set<SingleMove> singleMoves,
-													  Set<DoubleMove> doubleMoves,
-													  ImmutableSet<Move> moves){
+		public ImmutableSet<Move> getMrXMoves(Set<SingleMove> singleMoves, Set<DoubleMove> doubleMoves){
 			var initial = makeSingleMoves(setup,detectives,mrX, mrX.location());
 //              mrx # moves should not exceed max size of his travel log (can only double if not last round)
 //				# moves he can make minus travel log must be greater than two (double move)
