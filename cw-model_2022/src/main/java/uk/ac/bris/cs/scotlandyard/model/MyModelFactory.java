@@ -78,14 +78,13 @@ public final class MyModelFactory implements Factory<Model> {
 		}
 	}
 
-
 	@Nonnull
 	@Override
 	public Model build(GameSetup setup,
 					   Player mrX,
 					   ImmutableList<Player> detectives) {
+		// Build a new GameState and pass into Model
 		Board.GameState state = new MyGameStateFactory().build(setup,mrX,detectives);
-		// TODO
-		return new MyModel(state, ImmutableSet.<Model.Observer>builder().build());
+		return new MyModel(state, ImmutableSet.of());
 	}
 }
