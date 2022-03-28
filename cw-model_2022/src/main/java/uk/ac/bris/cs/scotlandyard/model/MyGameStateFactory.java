@@ -117,15 +117,11 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 		void checkDetectiveNoMoreMoves() {
 			boolean noDetectiveMoves = true;
+			List<Ticket> dTicketTypes = Arrays.asList(Ticket.UNDERGROUND,Ticket.TAXI,Ticket.BUS);
 			for (Player d : detectives) {
-				Set<Integer> destinations = new HashSet<>(setup.graph.adjacentNodes(d.location()));
-				// Loop through set of adjacent nodes to check if detectives is there
-				for (int dest : destinations) {
-					// If no detective loop through each transport method to see if its possible move
-					for (Transport t : Objects.requireNonNull(setup.graph.edgeValueOrDefault(d.location(), dest, ImmutableSet.of()))) {
-						if (d.hasAtLeast(t.requiredTicket(), 1)) {
-							noDetectiveMoves = false;
-						}
+				for (Ticket t : dTicketTypes){
+					if (d.hasAtLeast(t, 1)) {
+						noDetectiveMoves = false;
 					}
 				}
 			}
@@ -204,7 +200,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			if (move.commencedBy().isMrX()) {
 				mrX = mrX.at(destination);
 				mrX = mrX.use(move.tickets());
-				addLogEntry(move,destination);
+				log = addLogEntry(move,destination);
 			}
 
 			// Current detectives that haven't moved
@@ -222,13 +218,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 //			all detectives have moved (=empty), board updates with remaining as pieces in new location
 			if (remainingPieces.isEmpty()) {
-//				Set<Piece> newPieces = new HashSet<>();
-//				for (Player p : players) {
-//					newPieces.add(p.piece());
-//				}
-//				newPieces.add(mrX.piece());
-//				remaining = ImmutableSet.copyOf(newPieces);
-				resetRemaining(players);
+				remaining = resetRemainingNewRound(players);
 			}
 //			otherwise, remaining is updated with detectives that hasn't moved  yet
 			else {
@@ -240,13 +230,13 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return new MyGameState(setup,remaining,log,mrX,detectives);
 		}
 
-		public void resetRemaining(Set<Player> players) {
+		public ImmutableSet<Piece> resetRemainingNewRound(Set<Player> players) {
 			Set<Piece> newPieces = new HashSet<>();
 			for (Player p : players) {
 				newPieces.add(p.piece());
 			}
 			newPieces.add(mrX.piece());
-			remaining = ImmutableSet.copyOf(newPieces);
+			return ImmutableSet.copyOf(newPieces);
 		}
 
 		public int getDestination(Move move){
@@ -265,7 +255,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return destination;
 		}
 
-		public void addLogEntry(Move move, int destination) {
+		public ImmutableList<LogEntry> addLogEntry(Move move, int destination) {
 			List<LogEntry> entry = new ArrayList<>(log);
 			var tickets = move.accept(new Visitor<List<Ticket>>() {
 				@Override
@@ -290,7 +280,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 				if (setup.moves.get(entry.size())) entry.add(LogEntry.reveal(t,destination));
 				else entry.add(LogEntry.hidden(t));
 			}
-			log = ImmutableList.copyOf(entry);
+			return ImmutableList.copyOf(entry);
 		}
 
 		@Override public Optional<Integer> getDetectiveLocation(Detective detective) {
@@ -340,7 +330,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 				moves = getMrXMoves(singleMoves,doubleMoves);
 				return moves;
 			}
-
+			
 			for (Player player : remainingPlayers) {
 				var initial = detectives
 						.stream()
@@ -352,8 +342,9 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			moves =  ImmutableSet.<Move> builder()
 					.addAll(singleMoves)
 					.build();
-			// Logic here a bit scuffed has something to do with making moves empty at end of advance if the rest of detectives cannot move
-			// for testGameNotOverIfMrXCorneredButCanStillMove
+//			 // Logic here a bit scuffed has something to do with making moves empty at end of advance if the rest of detectives cannot move
+//			 // for testGameNotOverIfMrXCorneredButCanStillMove
+			// If all detectives have moved or ran out of moves resets to MrX turn
 			if (moves.isEmpty()) {
 				moves = getMrXMoves(singleMoves,doubleMoves);
 			}
@@ -369,11 +360,10 @@ public final class MyGameStateFactory implements Factory<GameState> {
 				doubleMoves.addAll(initialD);
 			}
 			singleMoves.addAll(initial);
-			moves =  ImmutableSet.<Move> builder()
+			return ImmutableSet.<Move> builder()
 					.addAll(singleMoves)
 					.addAll(doubleMoves)
 					.build();
-			return moves;
 		}
 
 		private static Set<SingleMove> makeSingleMoves(GameSetup setup, List<Player> detectives, Player player, int source){
@@ -409,23 +399,27 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return availableMoves;
 		}
 
-		private static Set<DoubleMove> makeDoubleMoves(GameSetup setup, List<Player> detectives, Player player, int source){
+		private Set<DoubleMove> makeDoubleMoves(GameSetup setup, List<Player> detectives, Player player, int source){
 			// Create a set containing all detective locations
 			var detectiveLocations = detectives
 					.stream()
 					.map(Player::location)
 					.collect(Collectors.toSet());
 
-			// TODO create an empty collection of some sort, say, HashSet, to store all the SingleMove we generate
 			Set<DoubleMove> availableMoves = new HashSet<>();
-			// If player is detective return as detective not supposed to have double moves
-			if (player.isDetective()) return availableMoves;
+			// TODO create an empty collection of some sort, say, HashSet, to store all the SingleMove we generate
 			// If player is MrX but no double tickets return early
-			if (!player.has(Ticket.DOUBLE)) return availableMoves;
+			if (!player.hasAtLeast(Ticket.DOUBLE,1)) return availableMoves;
 
+			availableMoves = checkDoubleMove(detectiveLocations, source, player);
+
+			return availableMoves;
+		}
+
+		private Set<DoubleMove> checkDoubleMove(Set<Integer> detectiveLocations, int source, Player player){
 			// Set containing possible first step move
 			Set<SingleMove> firstMove = new HashSet<>(makeSingleMoves(setup,detectives,player,source));
-
+			Set<DoubleMove> availableMoves = new HashSet<>();
 			// For each first move loop through to find second move
 			for (SingleMove m : firstMove) {
 				// Set of 2nd move nodes
@@ -438,22 +432,20 @@ public final class MyGameStateFactory implements Factory<GameState> {
 					for (Transport t : Objects.requireNonNull(setup.graph.edgeValueOrDefault(m.destination, destination, ImmutableSet.of()))) {
 						// TODO find out if the player has the required tickets
 						//  if it does, construct a DoubleMove and add it the collection of moves to return
-						if (player.hasAtLeast(Ticket.DOUBLE,1)) {
-							// Checks double secret moves
-							if (player.hasAtLeast(Ticket.SECRET,2)) {
-								availableMoves.add(new DoubleMove(player.piece(), source, m.ticket, m.destination, Ticket.SECRET, destination));
-							}
-							// Checks if 2nd required ticket is same type as first move
-							if (m.ticket.equals(t.requiredTicket())) {
-								// If so then needs 2 tickets of that type
-								if (player.hasAtLeast(t.requiredTicket(),2)) {
-									availableMoves.add(new DoubleMove(player.piece(), source, m.ticket, m.destination, t.requiredTicket(), destination));
-								}
-							}
-							// If different ticket type check if there's 2nd type available
-							else if (player.hasAtLeast(t.requiredTicket(),1)) {
+						// Checks double secret moves
+						if (player.hasAtLeast(Ticket.SECRET,2)) {
+							availableMoves.add(new DoubleMove(player.piece(), source, m.ticket, m.destination, Ticket.SECRET, destination));
+						}
+						// Checks if 2nd required ticket is same type as first move
+						if (m.ticket.equals(t.requiredTicket())) {
+							// If so then needs 2 tickets of that type
+							if (player.hasAtLeast(t.requiredTicket(),2)) {
 								availableMoves.add(new DoubleMove(player.piece(), source, m.ticket, m.destination, t.requiredTicket(), destination));
 							}
+						}
+						// If different ticket type check if there's 2nd type available
+						else if (player.hasAtLeast(t.requiredTicket(),1)) {
+							availableMoves.add(new DoubleMove(player.piece(), source, m.ticket, m.destination, t.requiredTicket(), destination));
 						}
 					}
 				}
