@@ -6,21 +6,42 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 
-
+import com.google.common.collect.ImmutableSet;
 import io.atlassian.fugue.Pair;
-import uk.ac.bris.cs.scotlandyard.model.Ai;
-import uk.ac.bris.cs.scotlandyard.model.Board;
-import uk.ac.bris.cs.scotlandyard.model.Move;
+import uk.ac.bris.cs.scotlandyard.model.*;
 
 public class MyAi implements Ai {
 
-	@Nonnull @Override public String name() { return "Name me!"; }
+	@Nonnull @Override public String name() { return "Run, run, run away, run away, baby!"; }
 
 	@Nonnull @Override public Move pickMove(
 			@Nonnull Board board,
 			Pair<Long, TimeUnit> timeoutPair) {
 		// returns a random move, replace with your own implementation
 		var moves = board.getAvailableMoves().asList();
+		score(board);
 		return moves.get(new Random().nextInt(moves.size()));
+	}
+
+	@Override
+	public void onStart() {
+		Ai.super.onStart();
+	}
+
+	@Override
+	public void onTerminate() {
+		Ai.super.onTerminate();
+	}
+
+//	dist to detectives
+//	getAvailableMoves
+//  A most simple scoring method would consider the neighbouring nodes to MrX's position and check if detectives are present there
+	public int score(Board board) {
+		var moves = board.getAvailableMoves().asList();
+		for (Move m : moves){
+			if (m.commencedBy(mrX)) return 0;
+			System.out.println(m);
+		}
+		return 0;
 	}
 }
