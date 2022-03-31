@@ -26,10 +26,10 @@ public class MyAi implements Ai {
 		// returns a random move, replace with your own implementation
 		var moves = board.getAvailableMoves().asList();
 		int mrXLocation;
-		Piece.MrX mrX = Piece.MrX.MRX;
+		Piece.MrX mrXPiece = Piece.MrX.MRX;
 
 		Set<Piece> detectivePieces = new HashSet<>(board.getPlayers());
-		detectivePieces.remove(mrX);
+		detectivePieces.remove(mrXPiece);
 		if (moves.get(0).commencedBy().isMrX()) mrXLocation = moves.get(0).source();
 		var detectiveLocations = Objects.requireNonNull(board.getPlayers().stream()
 				.filter(Piece::isDetective)
@@ -43,12 +43,14 @@ public class MyAi implements Ai {
 							return Stream.of(ScotlandYard.Ticket.values()).collect(ImmutableMap.toImmutableMap(
 									Function.identity(), b::getCount));
 						})));
-		ImmutableMap<ScotlandYard.Ticket,Integer> mrXTickets = playerTickets.get(mrX);
+		ImmutableMap<ScotlandYard.Ticket,Integer> mrXTickets = playerTickets.get(mrXPiece);
 		Map<ScotlandYard.Ticket,Integer> detectiveTickets = new HashMap<>();
+		Set<Player> detectives = new HashSet<>();
 		for (Piece d : detectivePieces){
-			var test = Map.copyOf(playerTickets.get(d));
+			Map<ScotlandYard.Ticket,Integer> test = Map.copyOf(playerTickets.get(d));
+			test.forEach((key, value) -> detectiveTickets.put(key, value));
+			detectives.add(new Player(d, ImmutableMap.copyOf(detectiveTickets), detectiveLocations.get(d)));
 		}
-
 		return moves.get(new Random().nextInt(moves.size()));
 	}
 
