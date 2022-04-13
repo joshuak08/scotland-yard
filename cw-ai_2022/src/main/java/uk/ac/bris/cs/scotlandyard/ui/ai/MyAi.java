@@ -17,7 +17,6 @@ import com.google.common.graph.ValueGraph;
 import io.atlassian.fugue.Pair;
 import uk.ac.bris.cs.scotlandyard.model.*;
 import uk.ac.bris.cs.scotlandyard.model.Move.SingleMove;
-//import uk.ac.bris.cs.scotlandyard.model.ImmutableBoard;
 
 public class MyAi implements Ai {
 
@@ -46,13 +45,51 @@ public class MyAi implements Ai {
 		}
 		Player mrX = new Player(mrXPiece, mrXTickets, mrXLocation);
 
-		MyGameStateFactory factory = new MyGameStateFactory();
-		MyGameStateFactory.MyGameState state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
+//		MyGameStateFactory factory = new MyGameStateFactory();
+//		MyGameStateFactory.MyGameState state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 
-		// scoredMoves has the top 10 best scored moves but it is not ordered ie random
+		// scoredMoves has the top 10 best scored moves ordered by score
 		var scoredMoves = score(board, mrX, detectives);
 
-		return moves.get(new Random().nextInt(moves.size()));
+//		System.out.println("All moves:");
+//		System.out.println(moves);
+		System.out.println("Moves to choose from:");
+		System.out.println(scoredMoves);
+//		var firstKey = scoredMoves.keySet().stream().findFirst();
+//		var highestScore = scoredMoves.get(firstKey.get());
+
+		Move hello = new SingleMove(Piece.MrX.MRX, 20, ScotlandYard.Ticket.TAXI, 21);
+		var test = scoredMoves
+				.keySet()
+				.stream()
+				.filter(x -> x.getClass().equals(hello.getClass()))
+				.collect(Collectors.toList());
+
+		boolean dClose = false;
+		for (Player d : detectives){
+			if (bfsSize(board, d.location(), mrX.location()) <=1) {
+				dClose = true;
+				System.out.println(d);
+			}
+		}
+
+		if (!dClose) {
+			test = test.stream().filter(x -> x.getClass().equals(hello.getClass())).collect(Collectors.toList());
+		}
+
+		if (test.size() == 0) {
+			System.out.println("Double move chosen:");
+			System.out.println(scoredMoves.entrySet().iterator().next().getKey());
+			return scoredMoves.entrySet().iterator().next().getKey();
+		}
+		else {
+			System.out.println("SingleMove to choose from:");
+			System.out.println(test);
+			System.out.println("SingleMove chosen:");
+			System.out.println(test.iterator().next());
+			return test.iterator().next();
+		}
+//		return moves.get(new Random().nextInt(moves.size()));
 	}
 
 	public List<Integer> bfs(Board board, int start, int end){
@@ -92,27 +129,39 @@ public class MyAi implements Ai {
 		return path;
 	}
 
+	// Returns number of moves from detective to mrX
 	public int bfsSize(Board board, int start, int end){
 		List<Integer> path = bfs(board, start, end);
 		return path.size()-1;
 	}
 
 	public Map<Move, Integer> score(Board board, Player mrX, Set<Player> detectives){
+		Move hello = new SingleMove(Piece.MrX.MRX, 20, ScotlandYard.Ticket.TAXI, 21);
 		var moves = board.getAvailableMoves();
 
 		Map<Move, Integer> track = new HashMap<>();
+		boolean dClose = false;
 		for (Move m : moves){
 			int mrXdestination = getDestination(m);
 			int count = 0;
 			for (Player d : detectives){
 				int dDistance = bfsSize(board, d.location(), mrXdestination);
-				if (dDistance<=2 && hasEnoughTickets(board, d.location(), mrXdestination, d)) dDistance = -1000;
+				if (dDistance<=1 && hasEnoughTickets(board, d.location(), mrXdestination, d)) {
+//					dClose = true;
+					dDistance = -1000;
+				}
 				count = count + dDistance;
 			}
+//			for (Player d : detectives){
+//				int dDistance = bfsSize(board, d.location(), mrXdestination);
+//				if (dDistance <= 2)
+//			}
 			track.put(m, count);
 		}
 
-		Map<Move, Integer> limit = new HashMap<>();
+
+		Map<Move, Integer> limit = new LinkedHashMap<>();
+		System.out.println(dClose);
 
 		track.entrySet()
 				.stream()
@@ -120,17 +169,11 @@ public class MyAi implements Ai {
 				.limit(10)
 				.forEach(e -> limit.put(e.getKey(), e.getValue()));
 
-
-//		var limit = track.entrySet()
+//		System.out.println("All moves:");
+//		track.entrySet()
 //				.stream()
 //				.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-//				.limit(10)
-//				.forEach(e -> limit.put(e.getKey(), e.getValue()));
-//				.collect(Collectors.toMap(e -> e.getKey(),
-//						e -> e.getValue(),
-//						(e1, e2) -> null, // or throw an exception
-//						() -> new HashMap<Move, Integer>()));
-//		limit.entrySet().stream().forEach(System.out::println);
+//				.forEach(System.out::println);
 
 		return limit;
 	}
@@ -156,11 +199,12 @@ public class MyAi implements Ai {
 		else return false;
 	}
 
+	// Checks if the entire array contains the same value
 	public static boolean areSame(boolean arr[]) {
 		Boolean first = arr[0];
-		for (int i=1; i<arr.length; i++)
-			if (arr[i] != first)
-				return false;
+		for (int i=1; i<arr.length; i++){
+			if (arr[i] != first) return false;
+		}
 		return true;
 	}
 
