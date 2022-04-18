@@ -16,7 +16,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.graph.ValueGraph;
 import io.atlassian.fugue.Pair;
 import uk.ac.bris.cs.scotlandyard.model.*;
-import uk.ac.bris.cs.scotlandyard.model.Move.SingleMove;
+import uk.ac.bris.cs.scotlandyard.model.Move.*;
 
 public class MyAi implements Ai {
 
@@ -29,6 +29,8 @@ public class MyAi implements Ai {
 		var moves = board.getAvailableMoves().asList();
 		Piece.MrX mrXPiece = Piece.MrX.MRX;
 		GameSetup setup = board.getSetup();
+		Move singleM = new SingleMove(Piece.MrX.MRX, 20, ScotlandYard.Ticket.TAXI, 21);
+		Move doubleM = new DoubleMove(Piece.MrX.MRX, 20, ScotlandYard.Ticket.TAXI, 21, ScotlandYard.Ticket.TAXI, 22);
 		int mrXLocation = moves.get(0).source();
 
 		Set<Piece> detectivePieces = new HashSet<>(board.getPlayers());
@@ -50,19 +52,21 @@ public class MyAi implements Ai {
 
 		// scoredMoves has the top 10 best scored moves ordered by score
 		var scoredMoves = score(board, mrX, detectives);
+		Pair<Move, Integer> pair = new Pair<>(scoredMoves.entrySet().iterator().next().getKey(), scoredMoves.entrySet().iterator().next().getValue());
 
-//		System.out.println("All moves:");
-//		System.out.println(moves);
 		System.out.println("Moves to choose from:");
 		System.out.println(scoredMoves);
-//		var firstKey = scoredMoves.keySet().stream().findFirst();
-//		var highestScore = scoredMoves.get(firstKey.get());
 
-		Move hello = new SingleMove(Piece.MrX.MRX, 20, ScotlandYard.Ticket.TAXI, 21);
-		var test = scoredMoves
+		var singleMoves = scoredMoves
 				.keySet()
 				.stream()
-				.filter(x -> x.getClass().equals(hello.getClass()))
+				.filter(x -> x.getClass().equals(singleM.getClass()))
+				.collect(Collectors.toList());
+
+		var doubleMoves = scoredMoves
+				.keySet()
+				.stream()
+				.filter(x -> x.getClass().equals(doubleM.getClass()))
 				.collect(Collectors.toList());
 
 		boolean dClose = false;
@@ -73,21 +77,20 @@ public class MyAi implements Ai {
 			}
 		}
 
-		if (!dClose) {
-			test = test.stream().filter(x -> x.getClass().equals(hello.getClass())).collect(Collectors.toList());
+		if (dClose && !doubleMoves.isEmpty()){
+			return doubleMoves.iterator().next();
 		}
-
-		if (test.size() == 0) {
+		else if (singleMoves.isEmpty()) {
 			System.out.println("Double move chosen:");
 			System.out.println(scoredMoves.entrySet().iterator().next().getKey());
 			return scoredMoves.entrySet().iterator().next().getKey();
 		}
 		else {
 			System.out.println("SingleMove to choose from:");
-			System.out.println(test);
+			System.out.println(singleMoves);
 			System.out.println("SingleMove chosen:");
-			System.out.println(test.iterator().next());
-			return test.iterator().next();
+			System.out.println(singleMoves.iterator().next());
+			return singleMoves.iterator().next();
 		}
 //		return moves.get(new Random().nextInt(moves.size()));
 	}
@@ -136,44 +139,30 @@ public class MyAi implements Ai {
 	}
 
 	public Map<Move, Integer> score(Board board, Player mrX, Set<Player> detectives){
-		Move hello = new SingleMove(Piece.MrX.MRX, 20, ScotlandYard.Ticket.TAXI, 21);
 		var moves = board.getAvailableMoves();
 
 		Map<Move, Integer> track = new HashMap<>();
-		boolean dClose = false;
 		for (Move m : moves){
 			int mrXdestination = getDestination(m);
 			int count = 0;
 			for (Player d : detectives){
 				int dDistance = bfsSize(board, d.location(), mrXdestination);
 				if (dDistance<=1 && hasEnoughTickets(board, d.location(), mrXdestination, d)) {
-//					dClose = true;
 					dDistance = -1000;
 				}
 				count = count + dDistance;
 			}
-//			for (Player d : detectives){
-//				int dDistance = bfsSize(board, d.location(), mrXdestination);
-//				if (dDistance <= 2)
-//			}
 			track.put(m, count);
 		}
 
 
 		Map<Move, Integer> limit = new LinkedHashMap<>();
-		System.out.println(dClose);
 
 		track.entrySet()
 				.stream()
 				.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
 				.limit(10)
 				.forEach(e -> limit.put(e.getKey(), e.getValue()));
-
-//		System.out.println("All moves:");
-//		track.entrySet()
-//				.stream()
-//				.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-//				.forEach(System.out::println);
 
 		return limit;
 	}
@@ -250,5 +239,44 @@ public class MyAi implements Ai {
 
 		});
 		return destination;
+	}
+}
+
+class Node {
+	Move move;
+	int score;
+	Node child1;
+	Node child2;
+	Node child3;
+	Node child4;
+	Node child5;
+	Node child6;
+	Node child7;
+	Node child8;
+	Node child9;
+	Node child10;
+
+	Node(Move move, int score){
+		this.move = move;
+		this.score = score;
+	}
+
+	static int sumValues(Node root) {
+		if (root == null) {
+			return 0;
+		}
+		return root.score + sumValues(root.child1) + sumValues(root.child2) + sumValues(root.child3) + sumValues(root.child4)
+				+ sumValues(root.child5) + sumValues(root.child6) + sumValues(root.child7) + sumValues(root.child8)
+				+ sumValues(root.child9) + sumValues(root.child10);
+	}
+}
+
+class Combo{
+	Move move;
+	int score;
+
+	Combo(Move move, int score){
+		this.move = move;
+		this.score = score;
 	}
 }
