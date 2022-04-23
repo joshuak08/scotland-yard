@@ -59,7 +59,7 @@ public class MyAi implements Ai {
 		MyGameStateFactory.MyGameState tracker = (MyGameStateFactory.MyGameState)  factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 
 		// scoredMoves has the top 10 best scored moves ordered by score
-		var scoredMoves = score(setup,state, mrX, detectives);
+		var scoredMoves = score(setup,state);
 
 		List<Move> singleMoves = new ArrayList<>();
 		List<Move> doubleMoves = new ArrayList<>();
@@ -103,7 +103,6 @@ public class MyAi implements Ai {
 	// Try to see if can make recursive call instead
 	public Move gameTree(GameSetup setup, MyGameStateFactory.MyGameState state, MyGameStateFactory factory, Player mrX, Set<Player> detectives, List<Combo> scoredMoves){
 		// test if state.getSetup == board.getSetup if it is then replace board with state for all the board input parameters
-//		MyGameStateFactory.MyGameState stateTracker = tracker;
 		// Placeholder for top most node so it's not null
 		Combo temp = new Combo(new SingleMove(Piece.MrX.MRX,1, ScotlandYard.Ticket.TAXI, 2), 0);
 		Node parent = new Node(temp);
@@ -111,34 +110,34 @@ public class MyAi implements Ai {
 		// Puts all of mrX first move into parent's children node
 		for (int i = 0; i < scoredMoves.size(); i++){
 			parent.children.add(i,new Node(scoredMoves.get(i)));
-
-			// for array
-//			parent.children[i] = new Node(scoredMoves.get(i));
 		}
 
+		int k = 0;
 		for(int i = 0; i< scoredMoves.size(); i++){
-//			System.out.println("For scoredMove: " + scoredMoves.get(i).move + " : " + scoredMoves.get(i).score);
-//			MyGameStateFactory.MyGameState state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
+			if (i == 56){
+				int a = 0;
+			}
 			state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 			state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
 
-			// for array
-//			state = (MyGameStateFactory.MyGameState) state.advance(parent.children[i].scoredMove.move);
+			System.out.println("Value of i: " + i);
+			// game over because of where mrX moved to 11 -> 3 -> 23 and green detective moved from 13 -> 23 so game ends
+			// find a way to skip move and skip node if bestDMove causes this situation
+			boolean dMoveToMrX = false;
 			for (Player p : detectives){
+				if (getDestination(bestDMove(setup, state, mrX, p)) == state.mrX.location()) dMoveToMrX = true;
+				if (dMoveToMrX) break;
 				state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, mrX, p));
 			}
+			if (dMoveToMrX) continue;
 
-			// check if this scoredMoves is correct
-			var scoredMoves1 = score(setup, state, mrX, detectives);
+			var scoredMoves1 = score(setup, state);
 			for (int j = 0; j< scoredMoves1.size(); j++){
 				parent.children.get(i).children.add(j, new Node(scoredMoves1.get(j)));
-
-				// for array
-//				parent.children[i].children[j] = new Node(scoredMoves1.get(j));
 			}
-
 		}
 		var largestNodes = Node.largestNodes(parent);
+		System.out.println("Largest nodes: ");
 		for (int i = 0; i< largestNodes.size(); i++){
 			System.out.println(largestNodes.get(i).move + " : " + largestNodes.get(i).score);
 		}
@@ -148,75 +147,43 @@ public class MyAi implements Ai {
 			System.out.print(" --> ");
 		}
 		System.out.println("");
-		for (int i = 0; i < parent.children.get(0).children.size(); i++){
-			System.out.print(parent.children.get(0).children.get(i).scoredMove.move + " : " + parent.children.get(i).scoredMove.score + " ");
-		}
-		System.out.println("Move choosen: ");
+		System.out.print("Move choosen: ");
 		System.out.println(path.get(1).move + " : " + path.get(1).score);
 		return path.get(1).move;
 	}
 
-//	public Node max(Node[] children){
-//		int max = children[0].scoredMove.score;
-//		int count = 0;
-//		for (int i = 0; i< children.length; i++){
-//			if (children[i].scoredMove.score > max) {
-//				max = children[i].scoredMove.score;
-//				count = i;
-//			}
-//		}
-//		return children[count];
-//	}
-
-//	public void treeDMoves(Board board, MyGameStateFactory.MyGameState state, Player mrX, Set<Player> detectives) {
-//		for (Player p : detectives){
-//			Set<Integer> dDestinations = new HashSet<>(board.getSetup().graph.adjacentNodes(p.location()));
-//			for (Integer d : dDestinations){
-//				var dDistance = score(board,mrX, detectives);
-//			}
-//		}
-//	}
-
 	// Can make better by looking at which type of ticket has more and choose that
 	public Move bestDMove(GameSetup setup, MyGameStateFactory.MyGameState state, Player mrX, Player detective){
 		var moves = state.getAvailableMoves();
-		Set<Move> dMoves = new HashSet<>();
+//		System.out.println(moves);
 		List<Combo> scoredMoves = new ArrayList<>();
 		for (Move m : moves){
 			if (m.commencedBy().equals(detective.piece())){
-				dMoves.add(m);
 				int destination = getDestination(m);
-				int score = bfsSize(setup, destination, mrX.location());
+				int score = bfsSize(setup, destination, state.mrX.location());
 				scoredMoves.add(new Combo(m, score));
 			}
 		}
 		scoredMoves.sort(Comparator.comparingInt(o -> o.score));
+//		System.out.println(scoredMoves.get(0).move);
 		return scoredMoves.get(0).move;
 	}
 
-	public List<Combo> score(GameSetup setup, MyGameStateFactory.MyGameState state, Player mrX, Set<Player> detectives){
+	public List<Combo> score(GameSetup setup, MyGameStateFactory.MyGameState state){
 		var moves = state.getAvailableMoves();
 
 		List<Combo> track = new ArrayList<>();
 		for (Move m : moves){
 			int mrXdestination = getDestination(m);
 			int count = 0;
-			for (Player d : detectives){
+			for (Player d : state.detectives){
 				int dDistance = bfsSize(setup, d.location(), mrXdestination);
-//				if (dDistance<=1 && hasEnoughTickets(board, d.location(), mrXdestination, d)) {
-//					dDistance = -1000;
-//				}
 				count = count + dDistance;
 			}
 			track.add(new Combo(m, count));
 		}
 
 		Collections.sort(track, (o1, o2) -> o2.score- o1.score);
-		System.out.println("Max number of different moves: " + track.size());
-
-//		List<Combo> limit = new ArrayList<>();
-//		if (track.size()<10) limit = track.subList(0, track.size());
-//		else limit = track.subList(0, 10);
 
 		return track;
 	}
@@ -342,27 +309,11 @@ public class MyAi implements Ai {
 class Node {
 	MyAi.Combo scoredMove;
 	List<Node> children;
-//	Node [] children;
 
 	Node (MyAi.Combo scoredMove){
 		this.scoredMove = scoredMove;
 		this.children = new ArrayList<>();
-//		this.children = new Node[10];
 	}
-
-//	static int sumValues(Node root) {
-//		if (root == null) {
-//			return 0;
-//		}
-//		int count = root.scoredMove.score;
-//		for (int i = 0; i<10; i++){
-//			count = count + sumValues(root.children[i]);
-//		}
-//		return count;
-////		return root.scoredMove.score + sumValues(root.child1) + sumValues(root.child2) + sumValues(root.child3) + sumValues(root.child4)
-////				+ sumValues(root.child5) + sumValues(root.child6) + sumValues(root.child7) + sumValues(root.child8)
-////				+ sumValues(root.child9) + sumValues(root.child10);
-//	}
 
 	static void findLargeNodes(List<MyAi.Combo> big, Node root, int d){
 		if (root == null) return;
@@ -373,12 +324,8 @@ class Node {
 			else big.set(d, root.scoredMove);
 		}
 
-		// for list
 		for (int i = 0; i < root.children.size(); i++){
 			findLargeNodes(big, root.children.get(i), d+1);
-
-			// for array
-//			findLargeNodes(big, root.children[i], d+1);
 		}
 	}
 
@@ -406,10 +353,6 @@ class Node {
 			if (hasPath(root.children.get(i), arr, p)) return true;
 		}
 
-		// for array
-//		for (int i = 0; i<root.children.length; i++){
-//			if (hasPath(root.children[i], arr, p)) return true;
-//		}
 
 		// required node does not lie either in any of the children node
 		// return current node value then return false
