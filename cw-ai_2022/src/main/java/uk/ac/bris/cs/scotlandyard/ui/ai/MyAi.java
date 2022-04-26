@@ -34,7 +34,6 @@ public class MyAi implements Ai {
 	@Nonnull @Override public Move pickMove(
 			@Nonnull Board board,
 			Pair<Long, TimeUnit> timeoutPair) {
-		// returns a random move, replace with your own implementation
 		var moves = board.getAvailableMoves().asList();
 		Piece.MrX mrXPiece = Piece.MrX.MRX;
 		GameSetup setup = board.getSetup();
@@ -56,20 +55,9 @@ public class MyAi implements Ai {
 
 		MyGameStateFactory factory = new MyGameStateFactory();
 		MyGameStateFactory.MyGameState state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
-		MyGameStateFactory.MyGameState tracker = (MyGameStateFactory.MyGameState)  factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 
 		// scoredMoves has the top 10 best scored moves ordered by score
 		var scoredMoves = score(setup,state);
-
-		List<Move> singleMoves = new ArrayList<>();
-		List<Move> doubleMoves = new ArrayList<>();
-//		for (int i = 0; i< scoredMoves.size(); i++){
-//			System.out.print(scoredMoves.get(i).move + " : " + scoredMoves.get(i).score);
-//			System.out.println("");
-//		}
-
-		scoredMoves.stream().filter(x -> x.move instanceof SingleMove).forEach(x -> singleMoves.add(x.move));
-		scoredMoves.stream().filter(x -> x.move instanceof DoubleMove).forEach(x -> doubleMoves.add(x.move));
 
 //		System.out.println("GameTree method:");
 		return gameTree(setup, state, factory, mrX, detectives, scoredMoves);
@@ -101,7 +89,7 @@ public class MyAi implements Ai {
 	}
 
 	// Try to see if can make recursive call instead
-	public Move gameTree(GameSetup setup, MyGameStateFactory.MyGameState state, MyGameStateFactory factory, Player mrX, Set<Player> detectives, List<Combo> scoredMoves){
+	private Move gameTree(GameSetup setup, MyGameStateFactory.MyGameState state, MyGameStateFactory factory, Player mrX, Set<Player> detectives, List<Combo> scoredMoves){
 		// test if state.getSetup == board.getSetup if it is then replace board with state for all the board input parameters
 		// Placeholder for top most node so it's not null
 		Combo temp = new Combo(new SingleMove(Piece.MrX.MRX,1, ScotlandYard.Ticket.TAXI, 2), 0);
@@ -112,17 +100,13 @@ public class MyAi implements Ai {
 			parent.children.add(i,new Node(scoredMoves.get(i)));
 		}
 
-		int k = 0;
 		for(int i = 0; i< scoredMoves.size(); i++){
-			if (i == 56){
-				int a = 0;
-			}
 			state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 			state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
 
-			System.out.println("Value of i: " + i);
 			// game over because of where mrX moved to 11 -> 3 -> 23 and green detective moved from 13 -> 23 so game ends
 			// find a way to skip move and skip node if bestDMove causes this situation
+			// if detective moves to mrX when constructing tree, then skip that node
 			boolean dMoveToMrX = false;
 			for (Player p : detectives){
 				if (getDestination(bestDMove(setup, state, mrX, p)) == state.mrX.location()) dMoveToMrX = true;
@@ -153,7 +137,7 @@ public class MyAi implements Ai {
 	}
 
 	// Can make better by looking at which type of ticket has more and choose that
-	public Move bestDMove(GameSetup setup, MyGameStateFactory.MyGameState state, Player mrX, Player detective){
+	private Move bestDMove(GameSetup setup, MyGameStateFactory.MyGameState state, Player mrX, Player detective){
 		var moves = state.getAvailableMoves();
 //		System.out.println(moves);
 		List<Combo> scoredMoves = new ArrayList<>();
@@ -169,7 +153,7 @@ public class MyAi implements Ai {
 		return scoredMoves.get(0).move;
 	}
 
-	public List<Combo> score(GameSetup setup, MyGameStateFactory.MyGameState state){
+	private List<Combo> score(GameSetup setup, MyGameStateFactory.MyGameState state){
 		var moves = state.getAvailableMoves();
 
 		List<Combo> track = new ArrayList<>();
@@ -188,8 +172,7 @@ public class MyAi implements Ai {
 		return track;
 	}
 
-	public List<Integer> bfs(GameSetup setup, int start, int end){
-//		GameSetup setup = board.getSetup();
+	private List<Integer> bfs(GameSetup setup, int start, int end){
 		int n = setup.graph.nodes().size();
 
 		// solve method from video
@@ -215,53 +198,53 @@ public class MyAi implements Ai {
 			}
 		}
 
-		// reconstruct path method from video
+		// reconstruct path from destination to source
 		List<Integer> path = new ArrayList<>();
 		for (int at = end; at != 0; at = prev[at-1]){
 			path.add(at);
 		}
-		// reverses path so that it starts at starting node
+		// reverses path so that it starts at source
 		Collections.reverse(path);
 		return path;
 	}
 
 	// Returns number of moves from detective to mrX
-	public int bfsSize(GameSetup setup, int start, int end){
+	private int bfsSize(GameSetup setup, int start, int end){
 		List<Integer> path = bfs(setup, start, end);
 		return path.size()-1;
 	}
 
-	public boolean hasEnoughTickets (GameSetup setup, int start, int end, Player detective) {
-//		GameSetup setup = board.getSetup();
-		List<Integer> path = bfs(setup, start, end);
-		int x = 0;
-		int y = 1;
-		boolean [] hasEnough = new boolean[path.size()-1];
-		Player placeHolder = detective;
-		while (y<bfsSize(setup, start, end)){
-			for (ScotlandYard.Transport t : Objects.requireNonNull(setup.graph.edgeValueOrDefault(path.get(x), path.get(y), ImmutableSet.of()))){
-				if (detective.hasAtLeast(t.requiredTicket(),1)){
-					placeHolder = placeHolder.use(t.requiredTicket());
-					hasEnough[x] = true;
-				}
-			}
-			x++;
-			y++;
-		}
-		if (areSame(hasEnough)) return true;
-		else return false;
-	}
+//	private boolean hasEnoughTickets (GameSetup setup, int start, int end, Player detective) {
+////		GameSetup setup = board.getSetup();
+//		List<Integer> path = bfs(setup, start, end);
+//		int x = 0;
+//		int y = 1;
+//		boolean [] hasEnough = new boolean[path.size()-1];
+//		Player placeHolder = detective;
+//		while (y<bfsSize(setup, start, end)){
+//			for (ScotlandYard.Transport t : Objects.requireNonNull(setup.graph.edgeValueOrDefault(path.get(x), path.get(y), ImmutableSet.of()))){
+//				if (detective.hasAtLeast(t.requiredTicket(),1)){
+//					placeHolder = placeHolder.use(t.requiredTicket());
+//					hasEnough[x] = true;
+//				}
+//			}
+//			x++;
+//			y++;
+//		}
+//		if (areSame(hasEnough)) return true;
+//		else return false;
+//	}
+//
+//	// Checks if the entire array contains the same value
+//	private static boolean areSame(boolean arr[]) {
+//		Boolean first = arr[0];
+//		for (int i=1; i<arr.length; i++){
+//			if (arr[i] != first) return false;
+//		}
+//		return true;
+//	}
 
-	// Checks if the entire array contains the same value
-	public static boolean areSame(boolean arr[]) {
-		Boolean first = arr[0];
-		for (int i=1; i<arr.length; i++){
-			if (arr[i] != first) return false;
-		}
-		return true;
-	}
-
-	public ImmutableMap<Piece.Detective, Integer> getDetectiveLocations(Board board){
+	private ImmutableMap<Piece.Detective, Integer> getDetectiveLocations(Board board){
 		return Objects.requireNonNull(board.getPlayers().stream()
 				.filter(Piece::isDetective)
 				.map(Piece.Detective.class::cast)
@@ -269,7 +252,7 @@ public class MyAi implements Ai {
 						x1 -> board.getDetectiveLocation(x1).orElseThrow())));
 	}
 
-	public ImmutableMap<Piece, ImmutableMap<ScotlandYard.Ticket,Integer>> getPlayerTickets (Board board){
+	private ImmutableMap<Piece, ImmutableMap<ScotlandYard.Ticket,Integer>> getPlayerTickets (Board board){
 		return Objects.requireNonNull(
 				board.getPlayers().stream().collect(ImmutableMap.toImmutableMap(
 						Function.identity(), x -> {
@@ -279,17 +262,7 @@ public class MyAi implements Ai {
 						})));
 	}
 
-	@Override
-	public void onStart() {
-		Ai.super.onStart();
-	}
-
-	@Override
-	public void onTerminate() {
-		Ai.super.onTerminate();
-	}
-
-	public int getDestination(Move move){
+	private int getDestination(Move move){
 		var destination = move.accept(new Move.Visitor<Integer>() {
 			@Override
 			public Integer visit(SingleMove move) {
@@ -304,6 +277,16 @@ public class MyAi implements Ai {
 		});
 		return destination;
 	}
+
+	@Override
+	public void onStart() {
+		Ai.super.onStart();
+	}
+
+	@Override
+	public void onTerminate() {
+		Ai.super.onTerminate();
+	}
 }
 
 class Node {
@@ -315,34 +298,34 @@ class Node {
 		this.children = new ArrayList<>();
 	}
 
-	static void findLargeNodes(List<MyAi.Combo> big, Node root, int d){
+	static void findLargeNodes(List<MyAi.Combo> large, Node root, int count){
 		if (root == null) return;
 
-		if (d == big.size()) big.add(root.scoredMove);
+		if (count == large.size()) large.add(root.scoredMove);
 		else{
-			if (Math.max(big.get(d).score, root.scoredMove.score) == big.get(d).score) big.set(d, big.get(d));
-			else big.set(d, root.scoredMove);
+			if (large.get(count).score > root.scoredMove.score) large.set(count, large.get(count));
+			else large.set(count, root.scoredMove);
 		}
 
 		for (int i = 0; i < root.children.size(); i++){
-			findLargeNodes(big, root.children.get(i), d+1);
+			findLargeNodes(large, root.children.get(i), count+1);
 		}
 	}
 
 	static List<MyAi.Combo> largestNodes(Node root){
-		List<MyAi.Combo> big = new ArrayList<>();
-		findLargeNodes(big, root, 0);
-		return big;
+		List<MyAi.Combo> large = new ArrayList<>();
+		findLargeNodes(large, root, 0);
+		return large;
 	}
 
-	static boolean hasPath(Node root, List<MyAi.Combo> arr, MyAi.Combo p)
+	static boolean findPath(Node root, List<MyAi.Combo> path, MyAi.Combo p)
 	{
 		// if root is NULL, then no path
 		if (root == null)
 			return false;
 
 		// push the node's value to list
-		arr.add(root.scoredMove);
+		path.add(root.scoredMove);
 
 		// if it is the required node return true
 		if (root.scoredMove == p)
@@ -350,13 +333,12 @@ class Node {
 
 		// else check whether the required node lies in the other children node
 		for (int i = 0; i<root.children.size(); i++){
-			if (hasPath(root.children.get(i), arr, p)) return true;
+			if (findPath(root.children.get(i), path, p)) return true;
 		}
-
 
 		// required node does not lie either in any of the children node
 		// return current node value then return false
-		arr.remove(arr.size()-1);
+		path.remove(path.size()-1);
 		return false;
 	}
 
@@ -364,9 +346,9 @@ class Node {
 	static List<MyAi.Combo> getPath(Node root, MyAi.Combo p)
 	{
 		// List to store the path
-		List<MyAi.Combo> arr = new ArrayList<>();
+		List<MyAi.Combo> path = new ArrayList<>();
 
-		hasPath(root, arr, p);
-		return arr;
+		findPath(root, path, p);
+		return path;
 	}
 }
