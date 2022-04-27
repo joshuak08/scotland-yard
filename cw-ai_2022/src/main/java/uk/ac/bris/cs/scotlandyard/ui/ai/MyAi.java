@@ -56,10 +56,9 @@ public class MyAi implements Ai {
 		MyGameStateFactory factory = new MyGameStateFactory();
 		MyGameStateFactory.MyGameState state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 
-		// scoredMoves has the top 10 best scored moves ordered by score
+		// all first mrX moves
 		var scoredMoves = score(setup,state);
 
-//		System.out.println("GameTree method:");
 		return gameTree(setup, state, factory, mrX, detectives, scoredMoves);
 
 //		boolean dClose = false;
@@ -109,23 +108,53 @@ public class MyAi implements Ai {
 			// if detective moves to mrX when constructing tree, then skip that node
 			boolean dMoveToMrX = false;
 			for (Player p : detectives){
-				if (getDestination(bestDMove(setup, state, mrX, p)) == state.mrX.location()) dMoveToMrX = true;
-				if (dMoveToMrX) break;
-				state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, mrX, p));
+				if (getDestination(bestDMove(setup, state, p)) == state.mrX.location()) {
+					dMoveToMrX = true;
+					break;
+				}
+				state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, p));
 			}
+//			boolean dMoveToMrX = passStateDWins(setup, factory, state, detectives);
 			if (dMoveToMrX) continue;
 
 			var scoredMoves1 = score(setup, state);
-			for (int j = 0; j< scoredMoves1.size(); j++){
+			for (int j = 0; j < scoredMoves1.size(); j++){
 				parent.children.get(i).children.add(j, new Node(scoredMoves1.get(j)));
 			}
+
+//			for (int j = 0; j < scoredMoves1.size(); j++){
+//				state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
+//				state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
+//				for (Player p : detectives) state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup,state, p));
+//				state = (MyGameStateFactory.MyGameState) factory.build(setup, state.mrX, ImmutableList.copyOf(state.detectives));
+//				state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).children.get(j).scoredMove.move);
+//
+//				// game over because of where mrX moved to 11 -> 3 -> 23 and green detective moved from 13 -> 23 so game ends
+//				// find a way to skip move and skip node if bestDMove causes this situation
+//				// if detective moves to mrX when constructing tree, then skip that node
+//				dMoveToMrX = false;
+//				for (Player p : detectives){
+//					if (getDestination(bestDMove(setup, state, p)) == state.mrX.location()) {
+//						dMoveToMrX = true;
+//						state = (MyGameStateFactory.MyGameState) factory.build(setup, state.mrX, ImmutableList.copyOf(state.detectives));
+//						break;
+//					}
+//					state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, p));
+//				}
+//				if (dMoveToMrX) continue;
+//
+//				var scoredMoves2 = score(setup, state);
+//				for (int k = 0; k < scoredMoves2.size(); k++){
+//					parent.children.get(i).children.get(j).children.add(k, new Node(scoredMoves2.get(k)));
+//				}
+//			}
 		}
-		var largestNodes = Node.largestNodes(parent);
-		System.out.println("Largest nodes: ");
-		for (int i = 0; i< largestNodes.size(); i++){
-			System.out.println(largestNodes.get(i).move + " : " + largestNodes.get(i).score);
-		}
-		var path = Node.getPath(parent, largestNodes.get(largestNodes.size()-1));
+//		var largestNodes = Node.largestNodes(parent);
+//		System.out.println("Largest nodes: ");
+//		for (Combo largestNode : largestNodes) {
+//			System.out.println(largestNode.move + " : " + largestNode.score);
+//		}
+		var path = Node.getPath(parent);
 		for (int i = 0; i< path.size(); i++){
 			System.out.print(path.get(i).move + " : " + path.get(i).score);
 			System.out.print(" --> ");
@@ -136,10 +165,23 @@ public class MyAi implements Ai {
 		return path.get(1).move;
 	}
 
+	private boolean passStateDWins(GameSetup setup, MyGameStateFactory factory, MyGameStateFactory.MyGameState state, Set<Player> detectives){
+		boolean dMoveToMrX = false;
+		for (Player p : state.detectives){
+			if (getDestination(bestDMove(setup, state, p)) == state.mrX.location()) {
+				dMoveToMrX = true;
+				break;
+//				state = (MyGameStateFactory.MyGameState) factory.build(setup, state.mrX, ImmutableList.copyOf(state.detectives));
+			}
+//			if (dMoveToMrX) break;
+			state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, p));
+		}
+		return dMoveToMrX;
+	}
+
 	// Can make better by looking at which type of ticket has more and choose that
-	private Move bestDMove(GameSetup setup, MyGameStateFactory.MyGameState state, Player mrX, Player detective){
+	private Move bestDMove(GameSetup setup, MyGameStateFactory.MyGameState state, Player detective){
 		var moves = state.getAvailableMoves();
-//		System.out.println(moves);
 		List<Combo> scoredMoves = new ArrayList<>();
 		for (Move m : moves){
 			if (m.commencedBy().equals(detective.piece())){
@@ -149,7 +191,7 @@ public class MyAi implements Ai {
 			}
 		}
 		scoredMoves.sort(Comparator.comparingInt(o -> o.score));
-//		System.out.println(scoredMoves.get(0).move);
+		// find out workaround if future moves detective loses but mrx still needs to move
 		return scoredMoves.get(0).move;
 	}
 
@@ -175,9 +217,6 @@ public class MyAi implements Ai {
 	private List<Integer> bfs(GameSetup setup, int start, int end){
 		int n = setup.graph.nodes().size();
 
-		// solve method from video
-//		Stack<Integer> stack = new Stack<>();
-//		stack.push(start);
 		Deque<Integer> queue = new ArrayDeque<>();
 		queue.addLast(start);
 		boolean [] visited = new boolean[n];
@@ -200,8 +239,10 @@ public class MyAi implements Ai {
 
 		// reconstruct path from destination to source
 		List<Integer> path = new ArrayList<>();
-		for (int at = end; at != 0; at = prev[at-1]){
-			path.add(at);
+		int i = end;
+		while(i != 0){
+			path.add(i);
+			i = prev[i-1];
 		}
 		// reverses path so that it starts at source
 		Collections.reverse(path);
@@ -213,6 +254,8 @@ public class MyAi implements Ai {
 		List<Integer> path = bfs(setup, start, end);
 		return path.size()-1;
 	}
+
+
 
 //	private boolean hasEnoughTickets (GameSetup setup, int start, int end, Player detective) {
 ////		GameSetup setup = board.getSetup();
@@ -298,12 +341,13 @@ class Node {
 		this.children = new ArrayList<>();
 	}
 
+	// find largest node at each level
 	static void findLargeNodes(List<MyAi.Combo> large, Node root, int count){
 		if (root == null) return;
 
-		if (count == large.size()) large.add(root.scoredMove);
+		if (large.size() == count) large.add(root.scoredMove);
 		else{
-			if (large.get(count).score > root.scoredMove.score) large.set(count, large.get(count));
+			if (large.get(count).score >= root.scoredMove.score) large.set(count, large.get(count));
 			else large.set(count, root.scoredMove);
 		}
 
@@ -312,43 +356,38 @@ class Node {
 		}
 	}
 
-	static List<MyAi.Combo> largestNodes(Node root){
-		List<MyAi.Combo> large = new ArrayList<>();
-		findLargeNodes(large, root, 0);
-		return large;
-	}
-
 	static boolean findPath(Node root, List<MyAi.Combo> path, MyAi.Combo p)
 	{
 		// if root is NULL, then no path
-		if (root == null)
-			return false;
+		if (root == null) return false;
 
 		// push the node's value to list
 		path.add(root.scoredMove);
 
-		// if it is the required node return true
-		if (root.scoredMove == p)
-			return true;
-
-		// else check whether the required node lies in the other children node
-		for (int i = 0; i<root.children.size(); i++){
-			if (findPath(root.children.get(i), path, p)) return true;
+		// if it is the wanted node return true
+		if (root.scoredMove == p) return true;
+		else {
+			// else check whether the wanted node lies in its children node
+			for (int i = 0; i<root.children.size(); i++){
+				if (findPath(root.children.get(i), path, p)) return true;
+			}
 		}
 
-		// required node does not lie either in any of the children node
-		// return current node value then return false
+		// wanted node not in any of its children
 		path.remove(path.size()-1);
 		return false;
 	}
 
 	// function to print the path from root to the given node (ie lowest level largest node)
-	static List<MyAi.Combo> getPath(Node root, MyAi.Combo p)
+	static List<MyAi.Combo> getPath(Node root)
 	{
-		// List to store the path
-		List<MyAi.Combo> path = new ArrayList<>();
+		// List of largest nodes at each level
+		List<MyAi.Combo> large = new ArrayList<>();
+		findLargeNodes(large, root, 0);
 
-		findPath(root, path, p);
+		// Path to largest node
+		List<MyAi.Combo> path = new ArrayList<>();
+		findPath(root, path, large.get(large.size()-1));
 		return path;
 	}
 }
