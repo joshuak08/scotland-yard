@@ -59,45 +59,21 @@ public class MyAi implements Ai {
 		// all first mrX moves
 		var scoredMoves = score(setup,state);
 		// recursive
-		Combo temp = new Combo(new SingleMove(Piece.MrX.MRX,1, ScotlandYard.Ticket.TAXI, 2), 0);
-		Node parent = new Node(temp);
-		gameTreeRecursive(setup, state, factory, scoredMoves, 3, 0, parent);
-		var path = Node.getPath(parent);
-		for (int i = 0; i< path.size(); i++){
-			System.out.print(path.get(i).move + " : " + path.get(i).score);
-			System.out.print(" --> ");
-		}
-		System.out.println("");
-		System.out.println("Move chosen: " + path.get(1).move);
-		return path.get(1).move;
+//		Combo temp = new Combo(new SingleMove(Piece.MrX.MRX,1, ScotlandYard.Ticket.TAXI, 2), 0);
+//		Node parent = new Node(temp);
+//		gameTreeRecursive(setup, state, factory, scoredMoves, 3, 0, parent);
+//		var path = Node.getPath(parent);
+//		for (int i = 0; i< path.size(); i++){
+//			System.out.print(path.get(i).move + " : " + path.get(i).score);
+//			System.out.print(" --> ");
+//		}
+//		System.out.println("");
+//		System.out.println("Move chosen: " + path.get(1).move);
+//		return path.get(1).move;
 
 		// iterative
-//		return gameTree(setup, state, factory, mrX, detectives, scoredMoves);
+		return gameTree(setup, state, factory, mrX, detectives, scoredMoves);
 
-//		boolean dClose = false;
-//		for (Player d : detectives){
-//			if (bfsSize(setup, d.location(), mrX.location()) <=1) {
-//				dClose = true;
-//			}
-//		}
-//
-//		if (dClose && !doubleMoves.isEmpty()){
-//			return doubleMoves.get(0);
-//		}
-//		else if (singleMoves.isEmpty()) {
-//			System.out.println("DoubleMove to choose from:");
-//			System.out.println(doubleMoves);
-//			System.out.println("Double move chosen:");
-//			System.out.println(scoredMoves.iterator().next().move);
-//			return scoredMoves.iterator().next().move;
-//		}
-//		else {
-//			System.out.println("SingleMove to choose from:");
-//			System.out.println(singleMoves);
-//			System.out.println("SingleMove chosen:");
-//			System.out.println(singleMoves.get(0));
-//			return singleMoves.get(0);
-//		}
 	}
 
 	// Try to see if can make recursive call instead
@@ -107,11 +83,13 @@ public class MyAi implements Ai {
 		Node parent = new Node(temp);
 
 		// Puts all of mrX first move into parent's children node
+//		Populate first level
 		for (int i = 0; i < scoredMoves.size(); i++){
 			parent.children.add(i,new Node(scoredMoves.get(i)));
 		}
 
-		for(int i = 0; i< scoredMoves.size(); i++){
+//
+		for(int i = 0; i < scoredMoves.size(); i++){
 			state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 			state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
 
@@ -119,27 +97,35 @@ public class MyAi implements Ai {
 			// find a way to skip move and skip node if bestDMove causes this situation
 			// if detective moves to mrX when constructing tree, then skip that node
 			boolean dMoveToMrX = detectiveWinsPass(setup, state);
-			state =  advanceDetectiveState(setup,state);
 			if (dMoveToMrX) continue;
+			state =  advanceDetectiveState(setup,state);
 
+//			Populate 2nd level
 			var scoredMoves1 = score(setup, state);
 			for (int j = 0; j < scoredMoves1.size(); j++){
 				parent.children.get(i).children.add(j, new Node(scoredMoves1.get(j)));
 			}
 
+//
 			for (int j = 0; j < scoredMoves1.size(); j++){
 				state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
+
+//				1st level leftmost node
 				state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
-				for (Player p : state.detectives){
-					if (bestDMove(setup, state, p) == null) continue;
-					state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup,state, p));
-				}
+
+//				detective 1 look ahead 1st level
+				state =  advanceDetectiveState(setup,state);
+
+//				2nd level leftmost
 				state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).children.get(j).scoredMove.move);
 
 				dMoveToMrX = detectiveWinsPass(setup, state);
-				state =  advanceDetectiveState(setup,state);
 				if (dMoveToMrX) continue;
 
+//				detective 1 look ahead 1st level
+				state =  advanceDetectiveState(setup,state);
+
+//				Populates 3rd level
 				var scoredMoves2 = score(setup, state);
 				for (int k = 0; k < scoredMoves2.size(); k++){
 					parent.children.get(i).children.get(j).children.add(k, new Node(scoredMoves2.get(k)));
@@ -192,9 +178,16 @@ public class MyAi implements Ai {
 			System.out.println(i);
 			state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
 
-			boolean dMoveToMrX = detectiveWinsPass(setup, state);
+			boolean dMoveToMrX = false;
+			for (Player p : state.detectives){
+				if (bestDMove(setup, state, p) == null) continue;
+				if (getDestination(Objects.requireNonNull(bestDMove(setup, state, p))) == state.mrX.location()) {
+					dMoveToMrX = true;
+					break;
+				}
+				state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup,state, p));
+			}
 			if (dMoveToMrX) continue;
-			state =  advanceDetectiveState(setup,state);
 
 			var scoredMoves1 = score(setup, state);
 			gameTreeRecursive(setup, state, factory, scoredMoves1, depth, count+1, parent.children.get(i));
@@ -234,11 +227,12 @@ public class MyAi implements Ai {
 		}
 
 		Collections.sort(track, (o1, o2) -> o2.score- o1.score);
-		List<Combo> limit = new ArrayList<>();
-		if (track.size()<50) limit = track.subList(0, track.size());
-		else limit = track.subList(0, 50);
+//		AI Limit
+//		List<Combo> limit = new ArrayList<>();
+//		if (track.size()<50) limit = track.subList(0, track.size());
+//		else limit = track.subList(0, 50);
 
-		return limit;
+		return track;
 	}
 
 	private List<Integer> bfs(GameSetup setup, int start, int end){
