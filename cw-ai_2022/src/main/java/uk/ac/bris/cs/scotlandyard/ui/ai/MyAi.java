@@ -118,15 +118,8 @@ public class MyAi implements Ai {
 			// game over because of where mrX moved to 11 -> 3 -> 23 and green detective moved from 13 -> 23 so game ends
 			// find a way to skip move and skip node if bestDMove causes this situation
 			// if detective moves to mrX when constructing tree, then skip that node
-			boolean dMoveToMrX = false;
-			for (Player p : detectives){
-				if (bestDMove(setup, state, p) == null) continue;
-				if (getDestination(bestDMove(setup, state, p)) == state.mrX.location()) {
-					dMoveToMrX = true;
-					break;
-				}
-				state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, p));
-			}
+			boolean dMoveToMrX = detectiveWinsPass(setup, state);
+			state =  advanceDetectiveState(setup,state);
 			if (dMoveToMrX) continue;
 
 			var scoredMoves1 = score(setup, state);
@@ -141,22 +134,10 @@ public class MyAi implements Ai {
 					if (bestDMove(setup, state, p) == null) continue;
 					state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup,state, p));
 				}
-//				state = (MyGameStateFactory.MyGameState) factory.build(setup, state.mrX, ImmutableList.copyOf(state.detectives));
 				state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).children.get(j).scoredMove.move);
 
-				// game over because of where mrX moved to 11 -> 3 -> 23 and green detective moved from 13 -> 23 so game ends
-				// find a way to skip move and skip node if bestDMove causes this situation
-				// if detective moves to mrX when constructing tree, then skip that node
-				dMoveToMrX = false;
-				for (Player p : state.detectives){
-					if (bestDMove(setup, state, p) == null) continue;
-					if (getDestination(bestDMove(setup, state, p)) == state.mrX.location()) {
-						dMoveToMrX = true;
-						state = (MyGameStateFactory.MyGameState) factory.build(setup, state.mrX, ImmutableList.copyOf(state.detectives));
-						break;
-					}
-					state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, p));
-				}
+				dMoveToMrX = detectiveWinsPass(setup, state);
+				state =  advanceDetectiveState(setup,state);
 				if (dMoveToMrX) continue;
 
 				var scoredMoves2 = score(setup, state);
@@ -176,16 +157,22 @@ public class MyAi implements Ai {
 		return path.get(1).move;
 	}
 
-	private boolean passStateDWins(GameSetup setup, MyGameStateFactory factory, MyGameStateFactory.MyGameState state, Set<Player> detectives){
+	private MyGameStateFactory.MyGameState advanceDetectiveState(GameSetup setup, MyGameStateFactory.MyGameState state){
+		for (Player p : state.detectives){
+			if (bestDMove(setup, state, p) == null) continue;
+			state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup,state, p));
+		}
+		return state;
+	}
+
+	private boolean detectiveWinsPass(GameSetup setup, MyGameStateFactory.MyGameState state){
 		boolean dMoveToMrX = false;
 		for (Player p : state.detectives){
 			if (bestDMove(setup, state, p) == null) continue;
-			if (getDestination(bestDMove(setup, state, p)) == state.mrX.location()) {
+			if (getDestination(Objects.requireNonNull(bestDMove(setup, state, p))) == state.mrX.location()) {
 				dMoveToMrX = true;
 				break;
-//				state = (MyGameStateFactory.MyGameState) factory.build(setup, state.mrX, ImmutableList.copyOf(state.detectives));
 			}
-//			if (dMoveToMrX) break;
 			state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, p));
 		}
 		return dMoveToMrX;
@@ -206,15 +193,8 @@ public class MyAi implements Ai {
 			System.out.println(i);
 			state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
 
-			boolean dMoveToMrX = false;
-			for (Player p : state.detectives){
-				if (bestDMove(setup, state, p) == null) continue;
-				if (getDestination(bestDMove(setup, state, p)) == state.mrX.location()) {
-					dMoveToMrX = true;
-					break;
-				}
-				state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, p));
-			}
+			boolean dMoveToMrX = detectiveWinsPass(setup, state);
+			state =  advanceDetectiveState(setup,state);
 			if (dMoveToMrX) continue;
 
 			var scoredMoves1 = score(setup, state);
