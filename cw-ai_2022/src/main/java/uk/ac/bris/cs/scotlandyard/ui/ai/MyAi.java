@@ -173,7 +173,6 @@ public class MyAi implements Ai {
 				dMoveToMrX = true;
 				break;
 			}
-			state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup, state, p));
 		}
 		return dMoveToMrX;
 	}
@@ -194,14 +193,12 @@ public class MyAi implements Ai {
 			state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
 
 			boolean dMoveToMrX = detectiveWinsPass(setup, state);
-			state =  advanceDetectiveState(setup,state);
 			if (dMoveToMrX) continue;
+			state =  advanceDetectiveState(setup,state);
 
 			var scoredMoves1 = score(setup, state);
 			gameTreeRecursive(setup, state, factory, scoredMoves1, depth, count+1, parent.children.get(i));
 		}
-
-
 		return parent;
 	}
 
@@ -237,8 +234,11 @@ public class MyAi implements Ai {
 		}
 
 		Collections.sort(track, (o1, o2) -> o2.score- o1.score);
+		List<Combo> limit = new ArrayList<>();
+		if (track.size()<50) limit = track.subList(0, track.size());
+		else limit = track.subList(0, 50);
 
-		return track;
+		return limit;
 	}
 
 	private List<Integer> bfs(GameSetup setup, int start, int end){
