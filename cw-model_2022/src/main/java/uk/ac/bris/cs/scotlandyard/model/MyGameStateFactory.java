@@ -423,7 +423,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return availableMoves;
 		}
 
-		// 
+		// Checks to see if mrX can have a double move through its conditions
 		private Set<DoubleMove> checkDoubleMove(Set<Integer> detectiveLocations, int source, Player player){
 			// Set containing possible first step move
 			Set<SingleMove> firstMove = new HashSet<>(makeSingleMoves(setup,detectives,player,source));
@@ -438,8 +438,6 @@ public final class MyGameStateFactory implements Factory<GameState> {
 					if (detectiveLocations.contains(destination)) continue;
 					// If no detective loop through each transport method to see if its possible move
 					for (Transport t : Objects.requireNonNull(setup.graph.edgeValueOrDefault(m.destination, destination, ImmutableSet.of()))) {
-						// TODO find out if the player has the required tickets
-						//  if it does, construct a DoubleMove and add it the collection of moves to return
 						// Checks double secret moves
 						if (player.hasAtLeast(Ticket.SECRET,2)) {
 							availableMoves.add(new DoubleMove(player.piece(), source, m.ticket, m.destination, Ticket.SECRET, destination));
@@ -463,12 +461,12 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 	}
 
-
 	@Nonnull @Override public GameState build(
 			GameSetup setup,
 			Player mrX,
 			ImmutableList<Player> detectives) {
 
+		// Creates new instance of MyGameState with all required parameters
 		Set<Piece> players = detectives
 				.stream()
 				.map(Player::piece)
