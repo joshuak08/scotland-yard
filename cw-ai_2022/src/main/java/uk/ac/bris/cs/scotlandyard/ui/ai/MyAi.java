@@ -238,8 +238,8 @@ public class MyAi implements Ai {
 //		Limit number of available moves to top 50 moves so that it runs faster and within
 //		time limit of choosing next move
 		List<scoredMove> limit = new ArrayList<>();
-		if (track.size()<75) limit = track.subList(0, track.size());
-		else limit = track.subList(0, 75);
+		if (track.size()<50) limit = track.subList(0, track.size());
+		else limit = track.subList(0, 50);
 
 		return limit;
 	}
