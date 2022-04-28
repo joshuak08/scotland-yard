@@ -222,11 +222,11 @@ public final class MyGameStateFactory implements Factory<GameState> {
 				else remainingPieces.add(curr.piece());
 			}
 
-//			all detectives have moved (=empty), board updates with remaining as pieces in new location
+//			all players have moved (=empty), board updates with remaining as players in new location
 			if (remainingPieces.isEmpty()) {
 				remaining = resetRemainingNewRound(players);
 			}
-//			otherwise, remaining is updated with detectives that hasn't moved  yet
+//			otherwise, remaining is updated with players that hasn't moved  yet
 			else {
 				remaining = ImmutableSet.copyOf(remainingPieces);
 			}

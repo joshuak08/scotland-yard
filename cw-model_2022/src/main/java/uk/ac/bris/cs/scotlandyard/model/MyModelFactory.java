@@ -40,6 +40,7 @@ public final class MyModelFactory implements Factory<Model> {
 		public void registerObserver(@Nonnull Observer observer) {
 			if (observers.contains(observer)) throw new IllegalArgumentException("Observer already in list");
 
+			// Adds new observer to set of observers, requires new list due to observers being an ImmutableSet
 			List<Observer> temp = new ArrayList<>();
 			temp.add(observer);
 			temp.addAll(observers);
@@ -51,6 +52,7 @@ public final class MyModelFactory implements Factory<Model> {
 			if (observer == null) throw new NullPointerException("No elements");
 			if (!observers.contains(observer)) throw new IllegalArgumentException("Not registered");
 
+			// Observers is ImmutableSet so needs temporary list as placeholder to remove input observer
 			List<Observer> temp = new ArrayList<>();
 			temp.addAll(observers);
 			temp.remove(observer);
@@ -65,13 +67,15 @@ public final class MyModelFactory implements Factory<Model> {
 
 		@Override
 		public void chooseMove(@Nonnull Move move) {
-			// TODO Advance the model with move, then notify all observers of what what just happened.
-			//  you may want to use getWinner() to determine whether to send out Event.MOVE_MADE or Event.GAME_OVER
+			// Advances move and updates state
 			state = state.advance(move);
 			ImmutableSet<Piece> winners =  state.getWinner();
 			Observer.Event status;
+			// If no winners then move is made
 			if (winners.isEmpty()) status = Observer.Event.MOVE_MADE;
+			// Else if there are winners then game over
 			else status = Observer.Event.GAME_OVER;
+			// Notify observers of new state
 			for (Observer o : observers){
 				o.onModelChanged(state,status);
 			}
