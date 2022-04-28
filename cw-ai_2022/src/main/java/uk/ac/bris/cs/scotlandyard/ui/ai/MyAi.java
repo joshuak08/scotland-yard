@@ -3,7 +3,6 @@ package uk.ac.bris.cs.scotlandyard.ui.ai;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
@@ -66,12 +65,6 @@ public class MyAi implements Ai {
 //		Node parent = new Node(temp);
 //		gameTreeRecursive(setup, state, factory, firstLevel, 3, 0, parent);
 //		List<ScoredMove> path = Node.getPath(parent);
-//		for (int i = 0; i< path.size(); i++){
-//			System.out.print(path.get(i).move + " : " + path.get(i).score);
-//			System.out.print(" --> ");
-//		}
-//		System.out.println("");
-//		System.out.println("Move chosen: " + path.get(1).move);
 //		return path.get(1).move;
 
 		// iterative
@@ -249,8 +242,6 @@ public class MyAi implements Ai {
 
 		// Sorts the list in descending order so highest scored moves first
 		track.sort((o1, o2) -> o2.score - o1.score);
-		// Filter the list so that any move with score below 0 is discarded
-//		track = track.stream().filter(x -> x.score > 0).collect(Collectors.toList());
 //		Limit number of available moves to top 50 moves so that it runs faster and within
 //		time limit of choosing next move
 		List<scoredMove> limit = new ArrayList<>();
