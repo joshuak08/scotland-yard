@@ -372,7 +372,7 @@ class Node {
 		this.children = new ArrayList<>();
 	}
 
-// 	Reference link: https://www.geeksforgeeks.org/largest-value-level-binary-tree/ for inspiration
+// 	Reference link: https://www.geeksforgeeks.org/largest-value-level-binary-tree/
 // 	Finds largest node at each level, runs recursively
 	static void findLargeNodes(Node node, List<MyAi.scoredMove> largest, int depth){
 		// Termination case when no more children nodes, goes back to parent node
@@ -395,7 +395,7 @@ class Node {
 		}
 	}
 
-// 	Reference link: https://www.geeksforgeeks.org/print-path-root-given-node-binary-tree/ for inspiration
+// 	Reference link: https://www.geeksforgeeks.org/print-path-root-given-node-binary-tree/
 // 	Method that finds the path to the largest node on the lowest level of the tree
 	static boolean findPath(Node node, List<MyAi.scoredMove> path, MyAi.scoredMove last) {
 		// if given node is null, then returns back to parent node to traverse to other nodes
