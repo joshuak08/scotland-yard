@@ -149,8 +149,8 @@ public class MyAi implements Ai {
 	// Detectives advance theoretically best 1 look ahead move to get the best future scored moves for mrX
 	private MyGameStateFactory.MyGameState advanceDetectiveState(GameSetup setup, MyGameStateFactory.MyGameState state){
 		for (Player p : state.detectives){
-			if (bestDMove(setup, state, p) == null) continue;
-			state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup,state, p));
+			if (bestDetectiveMove(setup, state, p) == null) continue;
+			state = (MyGameStateFactory.MyGameState) state.advance(bestDetectiveMove(setup,state, p));
 		}
 		return state;
 	}
@@ -160,8 +160,8 @@ public class MyAi implements Ai {
 		boolean dMoveToMrX = false;
 		for (Player p : state.detectives){
 			// if future detective can't move anymore then skip that detective
-			if (bestDMove(setup, state, p) == null) continue;
-			if (getDestination(Objects.requireNonNull(bestDMove(setup, state, p))) == state.mrX.location()) {
+			if (bestDetectiveMove(setup, state, p) == null) continue;
+			if (getDestination(Objects.requireNonNull(bestDetectiveMove(setup, state, p))) == state.mrX.location()) {
 				dMoveToMrX = true;
 				break;
 			}
@@ -203,7 +203,7 @@ public class MyAi implements Ai {
 	}
 
 	// Returns best theoretical detective move while constructing gameTree for mrX
-	private Move bestDMove(GameSetup setup, MyGameStateFactory.MyGameState state, Player detective){
+	private Move bestDetectiveMove(GameSetup setup, MyGameStateFactory.MyGameState state, Player detective){
 		// Gets detective moves
 		ImmutableSet<Move> moves = state.getAvailableMoves();
 		List<scoredMove> scoredMoves = new ArrayList<>();
@@ -250,12 +250,12 @@ public class MyAi implements Ai {
 		// Sorts the list in descending order so highest scored moves first
 		track.sort((o1, o2) -> o2.score - o1.score);
 		// Filter the list so that any move with score below 0 is discarded
-		track = track.stream().filter(x -> x.score > 0).collect(Collectors.toList());
+//		track = track.stream().filter(x -> x.score > 0).collect(Collectors.toList());
 //		Limit number of available moves to top 50 moves so that it runs faster and within
 //		time limit of choosing next move
 		List<scoredMove> limit = new ArrayList<>();
-		if (track.size()<50) limit = track.subList(0, track.size());
-		else limit = track.subList(0, 50);
+		if (track.size()<75) limit = track.subList(0, track.size());
+		else limit = track.subList(0, 75);
 
 		return limit;
 	}
