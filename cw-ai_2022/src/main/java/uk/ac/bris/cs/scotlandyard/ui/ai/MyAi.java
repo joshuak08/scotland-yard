@@ -129,13 +129,6 @@ public class MyAi implements Ai {
 		}
 		// List of scoredMove with moves that lead to best state/situation in 3 levels
 		List<scoredMove> path = Node.getPath(parent);
-		for (int i = 0; i< path.size(); i++){
-			System.out.print(path.get(i).move + " : " + path.get(i).score);
-			System.out.print(" --> ");
-		}
-		System.out.println("");
-		System.out.print("Move choosen: ");
-		System.out.println(path.get(1).move + " : " + path.get(1).score);
 		return path.get(1).move;
 	}
 
