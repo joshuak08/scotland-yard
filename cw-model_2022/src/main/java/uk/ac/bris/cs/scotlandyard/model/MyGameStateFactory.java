@@ -55,8 +55,9 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			checkWinner();
 		}
 
+		// Get set of detective pieces
 		private ImmutableSet<Piece> detectiveToPieces(List<Player> detectives) {
-			var players = detectives
+			Set<Piece> players = detectives
 					.stream()
 					.map(Player::piece)
 					.collect(Collectors.toSet());
@@ -74,6 +75,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			checkMrXMoves();
 		}
 
+		// Checks if mrX has made the total number of moves specified, if he did then he wins
 		void checkMrXLogFull() {
 			if (remaining.contains(mrX.piece()))
 				if (setup.moves.size() == log.size()) winner = ImmutableSet.of(mrX.piece());
@@ -105,7 +107,9 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 		void checkDetectiveCaughtMrX() {
 			boolean mrXCaught = false;
+			// Iterate through all detectives
 			for (Player detective : detectives) {
+				// if any detective moved to mrX location then break out of loop and winners is detectives
 				if (mrX.location() == detective.location()) {
 					mrXCaught = true;
 					break;
@@ -115,6 +119,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			else winner = ImmutableSet.of();
 		}
 
+		// Checks if detectives still has any tickets left
 		void checkDetectiveNoMoreMoves() {
 			boolean noDetectiveMoves = true;
 			List<Ticket> dTicketTypes = Arrays.asList(Ticket.UNDERGROUND,Ticket.TAXI,Ticket.BUS);
@@ -148,6 +153,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			}
 		}
 
+		// Checks if there's overlap for detective location
 		void checkOverlapDetectiveLocation(){
 			Set<Integer> locations = new HashSet<>();
 			for (Player detective : detectives){
@@ -162,8 +168,8 @@ public final class MyGameStateFactory implements Factory<GameState> {
 		}
 
 		void checkDetectiveSecret(){
-			for (Player detective1 : detectives) {
-				if (detective1.tickets().get(Ticket.SECRET) > 0) {
+			for (Player detective : detectives) {
+				if (detective.tickets().get(Ticket.SECRET) > 0) {
 					throw new IllegalArgumentException("Detectives shouldn't have secret tickets ");
 				}
 			}
@@ -171,7 +177,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 		@Override public GameSetup getSetup() {  return setup; }
 		@Override  public ImmutableSet<Piece> getPlayers() {
-			var players = detectives
+			Set<Piece> players = detectives
 					.stream()
 					.map(Player::piece)
 					.collect(Collectors.toSet());
@@ -239,8 +245,9 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return ImmutableSet.copyOf(newPieces);
 		}
 
+		// Used visitor pattern here to try and figure out destination of move regardless of single or double move
 		public int getDestination(Move move){
-			var destination = move.accept(new Visitor<Integer>() {
+			int destination = move.accept(new Visitor<Integer>() {
 				@Override
 				public Integer visit(SingleMove move) {
 					return move.destination;
@@ -257,7 +264,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 		public ImmutableList<LogEntry> addLogEntry(Move move, int destination) {
 			List<LogEntry> entry = new ArrayList<>(log);
-			var tickets = move.accept(new Visitor<List<Ticket>>() {
+			List<Ticket> tickets = move.accept(new Visitor<List<Ticket>>() {
 				@Override
 				public List<Ticket> visit(SingleMove move) {
 					List<Ticket> ticket = new ArrayList<>();
@@ -332,7 +339,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			}
 			
 			for (Player player : remainingPlayers) {
-				var initial = detectives
+				Set<SingleMove> initial = detectives
 						.stream()
 						.map(single -> (makeSingleMoves(setup,detectives, player, player.location())))
 						.flatMap(Collection::stream)
@@ -342,8 +349,6 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			moves =  ImmutableSet.<Move> builder()
 					.addAll(singleMoves)
 					.build();
-//			 // Logic here a bit scuffed has something to do with making moves empty at end of advance if the rest of detectives cannot move
-//			 // for testGameNotOverIfMrXCorneredButCanStillMove
 			// If all detectives have moved or ran out of moves resets to MrX turn
 			if (moves.isEmpty()) {
 				moves = getMrXMoves(singleMoves,doubleMoves);
@@ -352,11 +357,11 @@ public final class MyGameStateFactory implements Factory<GameState> {
 		}
 
 		public ImmutableSet<Move> getMrXMoves(Set<SingleMove> singleMoves, Set<DoubleMove> doubleMoves) {
-			var initial = makeSingleMoves(setup,detectives,mrX, mrX.location());
+			Set<SingleMove> initial = makeSingleMoves(setup,detectives,mrX, mrX.location());
 //              mrx moves should not exceed max size of his travel log (can only double if not last round);
 //				moves he can make minus travel log must be greater than two (double move)
 			if (setup.moves.size() - log.size() >= 2) {
-				var initialD = makeDoubleMoves(setup,detectives,mrX, mrX.location());
+				Set<DoubleMove> initialD = makeDoubleMoves(setup,detectives,mrX, mrX.location());
 				doubleMoves.addAll(initialD);
 			}
 			singleMoves.addAll(initial);
@@ -368,7 +373,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 		private static Set<SingleMove> makeSingleMoves(GameSetup setup, List<Player> detectives, Player player, int source){
 			// Create a set containing all detective locations
-			var detectiveLocations = detectives
+			Set<Integer> detectiveLocations = detectives
 					.stream()
 					.map(Player::location)
 					.collect(Collectors.toSet());
@@ -401,7 +406,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 		private Set<DoubleMove> makeDoubleMoves(GameSetup setup, List<Player> detectives, Player player, int source){
 			// Create a set containing all detective locations
-			var detectiveLocations = detectives
+			Set<Integer> detectiveLocations = detectives
 					.stream()
 					.map(Player::location)
 					.collect(Collectors.toSet());
@@ -461,7 +466,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			Player mrX,
 			ImmutableList<Player> detectives) {
 
-		var players = detectives
+		Set<Piece> players = detectives
 				.stream()
 				.map(Player::piece)
 				.collect(Collectors.toSet());

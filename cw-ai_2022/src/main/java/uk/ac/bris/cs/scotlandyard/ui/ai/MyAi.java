@@ -2,9 +2,7 @@ package uk.ac.bris.cs.scotlandyard.ui.ai;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -13,17 +11,16 @@ import javax.annotation.Nonnull;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.graph.ValueGraph;
 import io.atlassian.fugue.Pair;
 import uk.ac.bris.cs.scotlandyard.model.*;
 import uk.ac.bris.cs.scotlandyard.model.Move.*;
 
 public class MyAi implements Ai {
-	class Combo{
+	class scoredMove {
 		Move move;
 		int score;
 
-		Combo(Move move, int score){
+		scoredMove(Move move, int score){
 			this.move = move;
 			this.score = score;
 		}
@@ -34,34 +31,41 @@ public class MyAi implements Ai {
 	@Nonnull @Override public Move pickMove(
 			@Nonnull Board board,
 			Pair<Long, TimeUnit> timeoutPair) {
-		var moves = board.getAvailableMoves().asList();
+		ImmutableList<Move> moves = board.getAvailableMoves().asList();
 		Piece.MrX mrXPiece = Piece.MrX.MRX;
 		GameSetup setup = board.getSetup();
+		// MrX location can be accessed through the available moves as AI only implemented for MrX not detectives
 		int mrXLocation = moves.get(0).source();
 
+		// Gets set of detective pieces
 		Set<Piece> detectivePieces = new HashSet<>(board.getPlayers());
 		detectivePieces.remove(mrXPiece);
-		var detectiveLocations = getDetectiveLocations(board);
+
+		// Gets an ImmutableMap containing detectives starting locations
+		ImmutableMap<Piece.Detective, Integer> detectiveLocations = getDetectiveLocations(board);
 		Set<Player> detectives = new HashSet<>();
-		var playerTickets = getPlayerTickets(board);
+		// Gets an ImmutableMap containing all players tickets
+		ImmutableMap<Piece, ImmutableMap<ScotlandYard.Ticket, Integer>> playerTickets = getPlayerTickets(board);
+		// Adds all the attributes to the detectives Set
 		for (Piece d : detectivePieces){
 			Map<ScotlandYard.Ticket,Integer> dTickets = Map.copyOf(playerTickets.get(d));
 			detectives.add(new Player(d, ImmutableMap.copyOf(dTickets), detectiveLocations.get(d)));
 		}
 
-		var mrXTickets = playerTickets.get(mrXPiece);
+		ImmutableMap<ScotlandYard.Ticket, Integer> mrXTickets = playerTickets.get(mrXPiece);
 		Player mrX = new Player(mrXPiece, mrXTickets, mrXLocation);
 
+		// Creates the starting GameState
 		MyGameStateFactory factory = new MyGameStateFactory();
 		MyGameStateFactory.MyGameState state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 
 		// all first mrX moves
-		var scoredMoves = score(setup,state);
+		List<scoredMove> firstLevel = score(setup,state);
 		// recursive
 //		Combo temp = new Combo(new SingleMove(Piece.MrX.MRX,1, ScotlandYard.Ticket.TAXI, 2), 0);
 //		Node parent = new Node(temp);
-//		gameTreeRecursive(setup, state, factory, scoredMoves, 3, 0, parent);
-//		var path = Node.getPath(parent);
+//		gameTreeRecursive(setup, state, factory, firstLevel, 3, 0, parent);
+//		List<Combo> path = Node.getPath(parent);
 //		for (int i = 0; i< path.size(); i++){
 //			System.out.print(path.get(i).move + " : " + path.get(i).score);
 //			System.out.print(" --> ");
@@ -71,23 +75,23 @@ public class MyAi implements Ai {
 //		return path.get(1).move;
 
 		// iterative
-		return gameTree(setup, state, factory, mrX, detectives, scoredMoves);
+		return gameTree(setup, state, factory, mrX, detectives, firstLevel);
 	}
 
 	// Constructs gameTree and returns move that would enable it to move the furthest 3 depths later
-	private Move gameTree(GameSetup setup, MyGameStateFactory.MyGameState state, MyGameStateFactory factory, Player mrX, Set<Player> detectives, List<Combo> scoredMoves){
+	private Move gameTree(GameSetup setup, MyGameStateFactory.MyGameState state, MyGameStateFactory factory, Player mrX, Set<Player> detectives, List<scoredMove> firstLevel){
 		// Placeholder for top most node so it's not null, contains current state
-		Combo temp = new Combo(new SingleMove(Piece.MrX.MRX,1, ScotlandYard.Ticket.TAXI, 2), 1);
+		scoredMove temp = new scoredMove(new SingleMove(Piece.MrX.MRX,1, ScotlandYard.Ticket.TAXI, 2), 1);
 		Node parent = new Node(temp);
 
 		// Puts all of mrX first move into parent's children node
-//		Populate first level
-		for (int i = 0; i < scoredMoves.size(); i++){
-			parent.children.add(i,new Node(scoredMoves.get(i)));
+		// Populate first level
+		for (int i = 0; i < firstLevel.size(); i++){
+			parent.children.add(i,new Node(firstLevel.get(i)));
 		}
 
 //		Advance state for 1st level nodes and best move for detectives, do the same with 2nd level and 3rd
-		for(int i = 0; i < scoredMoves.size(); i++){
+		for(int i = 0; i < firstLevel.size(); i++){
 			state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 			state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
 
@@ -98,13 +102,13 @@ public class MyAi implements Ai {
 			state =  advanceDetectiveState(setup,state);
 
 //			Populate 2nd level
-			var scoredMoves1 = score(setup, state);
-			for (int j = 0; j < scoredMoves1.size(); j++){
-				parent.children.get(i).children.add(j, new Node(scoredMoves1.get(j)));
+			List<scoredMove> secondLevel = score(setup, state);
+			for (int j = 0; j < secondLevel.size(); j++){
+				parent.children.get(i).children.add(j, new Node(secondLevel.get(j)));
 			}
 
 //			Advance state for 2nd level nodes and best move for detectives
-			for (int j = 0; j < scoredMoves1.size(); j++){
+			for (int j = 0; j < secondLevel.size(); j++){
 				// Resets state to original before first level
 				state = (MyGameStateFactory.MyGameState) factory.build(setup, mrX, ImmutableList.copyOf(detectives));
 
@@ -124,14 +128,14 @@ public class MyAi implements Ai {
 				state =  advanceDetectiveState(setup,state);
 
 //				Populates 3rd level
-				var scoredMoves2 = score(setup, state);
-				for (int k = 0; k < scoredMoves2.size(); k++){
-					parent.children.get(i).children.get(j).children.add(k, new Node(scoredMoves2.get(k)));
+				List<scoredMove> thirdLevel = score(setup, state);
+				for (int k = 0; k < thirdLevel.size(); k++){
+					parent.children.get(i).children.get(j).children.add(k, new Node(thirdLevel.get(k)));
 				}
 			}
 		}
 		// List of Combo with moves that lead to best state/situation in 3 levels
-		var path = Node.getPath(parent);
+		List<scoredMove> path = Node.getPath(parent);
 		for (int i = 0; i< path.size(); i++){
 			System.out.print(path.get(i).move + " : " + path.get(i).score);
 			System.out.print(" --> ");
@@ -165,32 +169,35 @@ public class MyAi implements Ai {
 		return dMoveToMrX;
 	}
 
-	private Node gameTreeRecursive(GameSetup setup, MyGameStateFactory.MyGameState state, MyGameStateFactory factory, List<Combo> scoredMoves, int depth, int count, Node parent){
+	// Does the same thing as it gameTree but it is recursive instead of iterative
+	// We used iterative method as it was faster in constructing the game tree
+	private Node gameTreeRecursive(GameSetup setup, MyGameStateFactory.MyGameState state, MyGameStateFactory factory, List<scoredMove> thisLevel, int depth, int count, Node parent){
+		// If count reaches depth of tree then return null to go back up the tree
 		if(depth == count) return null;
 
+		// Placeholder for initial game state
 		MyGameStateFactory.MyGameState tracker = (MyGameStateFactory.MyGameState) factory.build(setup, state.mrX, ImmutableList.copyOf(state.detectives));
 
-		for (int i = 0; i < scoredMoves.size(); i++){
-			parent.children.add(i, new Node(scoredMoves.get(i)));
+		// Populates next level
+		for (int i = 0; i < thisLevel.size(); i++){
+			parent.children.add(i, new Node(thisLevel.get(i)));
 		}
 
-		for (int i = 0; i < scoredMoves.size(); i++){
+		// Iterate through each children node, theoretically figure out best move for detective to decide future turns for mrX
+		for (int i = 0; i < thisLevel.size(); i++){
+			// Resets state to the input state of method call to go through each children node
 			state = (MyGameStateFactory.MyGameState) factory.build(setup, tracker.mrX, ImmutableList.copyOf(tracker.detectives));
 			state = (MyGameStateFactory.MyGameState) state.advance(parent.children.get(i).scoredMove.move);
 
-			boolean dMoveToMrX = false;
-			for (Player p : state.detectives){
-				if (bestDMove(setup, state, p) == null) continue;
-				if (getDestination(Objects.requireNonNull(bestDMove(setup, state, p))) == state.mrX.location()) {
-					dMoveToMrX = true;
-					break;
-				}
-				state = (MyGameStateFactory.MyGameState) state.advance(bestDMove(setup,state, p));
-			}
+			// if detective moves to mrX when constructing tree, then skip that node
+			boolean dMoveToMrX = detectiveWinsPass(setup, state);
 			if (dMoveToMrX) continue;
+			// detective advance theoretically best 1 look ahead move to get the best future scored moves for mrX
+			state =  advanceDetectiveState(setup,state);
 
-			var scoredMoves1 = score(setup, state);
-			gameTreeRecursive(setup, state, factory, scoredMoves1, depth, count+1, parent.children.get(i));
+			List<scoredMove> nextLevel = score(setup, state);
+			// Calls method recursively
+			gameTreeRecursive(setup, state, factory, nextLevel, depth, count+1, parent.children.get(i));
 		}
 		return parent;
 	}
@@ -198,27 +205,28 @@ public class MyAi implements Ai {
 	// Returns best theoretical detective move while constructing gameTree for mrX
 	private Move bestDMove(GameSetup setup, MyGameStateFactory.MyGameState state, Player detective){
 		// Gets detective moves
-		var moves = state.getAvailableMoves();
-		List<Combo> scoredMoves = new ArrayList<>();
+		ImmutableSet<Move> moves = state.getAvailableMoves();
+		List<scoredMove> scoredMoves = new ArrayList<>();
 		for (Move m : moves){
 			// filters moves by detectives
 			if (m.commencedBy().equals(detective.piece())){
 				// Gets destination of move
 				int destination = getDestination(m);
 				int score = bfsSize(setup, destination, state.mrX.location());
-				scoredMoves.add(new Combo(m, score));
+				scoredMoves.add(new scoredMove(m, score));
 			}
 		}
 		scoredMoves.sort(Comparator.comparingInt(o -> o.score));
 		// if detective can't move anymore due to no more appropriate tickets then return null
 		if (scoredMoves.size() == 0) return null;
+		// returns lowest scoring move, so picks best move closer to mrX
 		return scoredMoves.get(0).move;
 	}
 
 	// Scoring function that returns a list of class Combo which contains move and score for mrX moves
-	private List<Combo> score(GameSetup setup, MyGameStateFactory.MyGameState state){
-		var moves = state.getAvailableMoves();
-		List<Combo> track = new ArrayList<>();
+	private List<scoredMove> score(GameSetup setup, MyGameStateFactory.MyGameState state){
+		ImmutableSet<Move> moves = state.getAvailableMoves();
+		List<scoredMove> track = new ArrayList<>();
 		// Goes through each move
 		for (Move m : moves){
 			// Gets destination for move
@@ -228,23 +236,24 @@ public class MyAi implements Ai {
 			for (Player d : state.detectives){
 				// Gets distance from each detective and adds it to count acting as the score
 				int dDistance = bfsSize(setup, d.location(), mrXdestination);
-				// If there is a detective right next to mrX then it will never choose that moe by making the score very low
-				if (dDistance<=1 && enoughTickets(setup, d.location(), mrXdestination, d)) {
+				// If there is a detective right next to mrX (ie dDistance==1) then it will never choose that move
+				// by making the score very low even if the other detectives are very far away
+				if (dDistance==1 && enoughTickets(setup, d.location(), mrXdestination, d)) {
 					dDistance = -100;
 				}
 				count = count + dDistance;
 			}
 			// Adds move and its score to list track
-			track.add(new Combo(m, count));
+			track.add(new scoredMove(m, count));
 		}
 
 		// Sorts the list in descending order so highest scored moves first
-		Collections.sort(track, (o1, o2) -> o2.score- o1.score);
+		track.sort((o1, o2) -> o2.score - o1.score);
 		// Filter the list so that any move with score below 0 is discarded
 		track = track.stream().filter(x -> x.score > 0).collect(Collectors.toList());
 //		Limit number of available moves to top 50 moves so that it runs faster and within
 //		time limit of choosing next move
-		List<Combo> limit = new ArrayList<>();
+		List<scoredMove> limit = new ArrayList<>();
 		if (track.size()<50) limit = track.subList(0, track.size());
 		else limit = track.subList(0, 50);
 
@@ -261,29 +270,38 @@ public class MyAi implements Ai {
 		Deque<Integer> queue = new ArrayDeque<>();
 		// Adds starting integer
 		queue.addLast(start);
-		// Boolean array to keep track which nodes has been visited
-		boolean [] visited = new boolean[n];
-		Arrays.fill(visited, false);
+		// Boolean array to keep track which nodes have been found
+		boolean [] found = new boolean[n];
+		Arrays.fill(found, false);
 		// Using -1 as nodes in graph go from 1-200 so array index goes from 0-199 so -1 to account for the difference
-		visited[(start-1)] = true;
+		found[(start-1)] = true;
 
 		// keeps track of the path for each node linking to previous nodes
 		int [] last = new int[n];
+
+		// while loop that goes through each adjacent nodes recursively till end node found
 		while (!queue.isEmpty() && !queue.contains(end)){
+			// retrieves and removes the left most node
 			int node = queue.pop();
 			Set<Integer> adjacent = setup.graph.adjacentNodes(node);
 
+			// iterate through each adjacent node and add it to the queue
+			// found node for that index changed to true
+			// keeps track where each adjacent node connects to its previous node
 			for (int a : adjacent){
-				if (!visited[(a-1)]){
+				if (!found[(a-1)]){
 					queue.addLast(a);
-					visited[(a-1)] = true;
+					found[(a-1)] = true;
 					last[(a-1)] = node;
 				}
 			}
+			// once done it will go to the next adjacent node from starting node
 		}
 
 		// reconstruct path from destination to source
 		List<Integer> path = new ArrayList<>();
+		// i starts from the end and works backwards to figure out the path based
+		// on the last node it was connected to in the array
 		int i = end;
 		while(i != 0){
 			path.add(i);
@@ -335,7 +353,7 @@ public class MyAi implements Ai {
 	// Returns final destination from given move regardless whether single or double move
 	// Uses visitor pattern
 	private int getDestination(Move move){
-		var destination = move.accept(new Move.Visitor<Integer>() {
+		int destination = move.accept(new Move.Visitor<Integer>() {
 			@Override
 			public Integer visit(SingleMove move) {
 				return move.destination;
@@ -362,16 +380,16 @@ public class MyAi implements Ai {
 }
 
 class Node {
-	MyAi.Combo scoredMove;
+	MyAi.scoredMove scoredMove;
 	List<Node> children;
 
-	Node (MyAi.Combo scoredMove){
+	Node (MyAi.scoredMove scoredMove){
 		this.scoredMove = scoredMove;
 		this.children = new ArrayList<>();
 	}
 
 	// Finds largest node at each level, runs recursively
-	static void findLargeNodes(Node node, List<MyAi.Combo> large, int depth){
+	static void findLargeNodes(Node node, List<MyAi.scoredMove> large, int depth){
 		// Termination case when no more children nodes, goes back to parent node
 		if (node == null) return;
 
@@ -393,8 +411,7 @@ class Node {
 	}
 
 	// Method that finds the path to the largest node on the lowest level of the tree
-	static boolean findPath(Node node, List<MyAi.Combo> path, MyAi.Combo last)
-	{
+	static boolean findPath(Node node, List<MyAi.scoredMove> path, MyAi.scoredMove last) {
 		// if given node is null, then returns back to parent node to traverse to other nodes
 		if (node == null) return false;
 
@@ -418,14 +435,13 @@ class Node {
 
 	// function to return list containing path from very 1st parent node to the
 	// given node (ie lowest level largest node)
-	static List<MyAi.Combo> getPath(Node node)
-	{
+	static List<MyAi.scoredMove> getPath(Node node) {
 		// List of largest nodes at each level
-		List<MyAi.Combo> large = new ArrayList<>();
+		List<MyAi.scoredMove> large = new ArrayList<>();
 		findLargeNodes(node, large,0);
 
 		// Path to largest lowest level node
-		List<MyAi.Combo> path = new ArrayList<>();
+		List<MyAi.scoredMove> path = new ArrayList<>();
 		findPath(node, path, large.get(large.size()-1));
 		return path;
 	}
