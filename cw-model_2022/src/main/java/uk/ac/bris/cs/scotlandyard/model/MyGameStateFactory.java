@@ -236,6 +236,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return new MyGameState(setup,remaining,log,mrX,detectives);
 		}
 
+		// Resets the remaining list to contain all the players
 		public ImmutableSet<Piece> resetRemainingNewRound(Set<Player> players) {
 			Set<Piece> newPieces = new HashSet<>();
 			for (Player p : players) {
@@ -245,7 +246,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return ImmutableSet.copyOf(newPieces);
 		}
 
-		// Used visitor pattern here to try and figure out destination of move regardless of single or double move
+		// Used visitor pattern here to try and figure out destination of move depending if single or double move
 		public int getDestination(Move move){
 			int destination = move.accept(new Visitor<Integer>() {
 				@Override
@@ -302,6 +303,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return Optional.empty();
 		}
 		@Override public Optional<TicketBoard> getPlayerTickets (Piece piece) {
+			// Returns tickets based on input piece
 			for (Player detective : detectives) {
 				if (piece.equals(detective.piece())){
 					return Optional.of(ticket -> detective.tickets().get(ticket));
@@ -337,7 +339,8 @@ public final class MyGameStateFactory implements Factory<GameState> {
 				moves = getMrXMoves(singleMoves,doubleMoves);
 				return moves;
 			}
-			
+
+			// Else detectives turns
 			for (Player player : remainingPlayers) {
 				Set<SingleMove> initial = detectives
 						.stream()
@@ -358,12 +361,13 @@ public final class MyGameStateFactory implements Factory<GameState> {
 
 		public ImmutableSet<Move> getMrXMoves(Set<SingleMove> singleMoves, Set<DoubleMove> doubleMoves) {
 			Set<SingleMove> initial = makeSingleMoves(setup,detectives,mrX, mrX.location());
-//              mrx moves should not exceed max size of his travel log (can only double if not last round);
-//				moves he can make minus travel log must be greater than two (double move)
+//          mrx moves should not exceed max size of his travel log (can only double if not last round);
+//			moves he can make minus travel log must be greater than two (double move)
 			if (setup.moves.size() - log.size() >= 2) {
 				Set<DoubleMove> initialD = makeDoubleMoves(setup,detectives,mrX, mrX.location());
 				doubleMoves.addAll(initialD);
 			}
+			// adds all single moves for mrX
 			singleMoves.addAll(initial);
 			return ImmutableSet.<Move> builder()
 					.addAll(singleMoves)
@@ -378,7 +382,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 					.map(Player::location)
 					.collect(Collectors.toSet());
 
-			// TODO create an empty collection of some sort, say, HashSet, to store all the SingleMove we generate
+			// Set to contain all moves
 			Set<SingleMove> availableMoves = new HashSet<>();
 			// Set containing adjacent nodes from source
 			Set<Integer> destinations = new HashSet<>(setup.graph.adjacentNodes(source));
@@ -389,13 +393,11 @@ public final class MyGameStateFactory implements Factory<GameState> {
 				if (detectiveLocations.contains(destination)) continue;
 				// If no detective loop through each transport method to see if its possible move
 				for (Transport t : Objects.requireNonNull(setup.graph.edgeValueOrDefault(source, destination, ImmutableSet.of()))) {
-					// TODO find out if the player has the required tickets
-					//  if it does, construct a SingleMove and add it the collection of moves to return
+					// if player has required tickets, construct SingleMove and add to the set
 					if (player.hasAtLeast(t.requiredTicket(),1)) {
 						availableMoves.add(new SingleMove(player.piece(), source, t.requiredTicket(), destination));
 					}
-					// TODO consider the rules of secret moves here
-					//  add moves to the destination via a secret ticket if there are any left with the player
+					// if player has secret tickets (ie mrX) then add the secret ticket type
 					if (player.hasAtLeast(Ticket.SECRET,1)) {
 						availableMoves.add(new SingleMove(player.piece(), source, Ticket.SECRET, destination));
 					}
@@ -411,8 +413,8 @@ public final class MyGameStateFactory implements Factory<GameState> {
 					.map(Player::location)
 					.collect(Collectors.toSet());
 
+			// set to contain all double moves
 			Set<DoubleMove> availableMoves = new HashSet<>();
-			// TODO create an empty collection of some sort, say, HashSet, to store all the SingleMove we generate
 			// If player is MrX but no double tickets return early
 			if (!player.hasAtLeast(Ticket.DOUBLE,1)) return availableMoves;
 
@@ -421,6 +423,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 			return availableMoves;
 		}
 
+		// 
 		private Set<DoubleMove> checkDoubleMove(Set<Integer> detectiveLocations, int source, Player player){
 			// Set containing possible first step move
 			Set<SingleMove> firstMove = new HashSet<>(makeSingleMoves(setup,detectives,player,source));

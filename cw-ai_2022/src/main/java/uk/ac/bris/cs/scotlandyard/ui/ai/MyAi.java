@@ -62,10 +62,10 @@ public class MyAi implements Ai {
 		// all first mrX moves
 		List<scoredMove> firstLevel = score(setup,state);
 		// recursive
-//		Combo temp = new Combo(new SingleMove(Piece.MrX.MRX,1, ScotlandYard.Ticket.TAXI, 2), 0);
+//		ScoredMove temp = new ScoredMove(new SingleMove(Piece.MrX.MRX,1, ScotlandYard.Ticket.TAXI, 2), 0);
 //		Node parent = new Node(temp);
 //		gameTreeRecursive(setup, state, factory, firstLevel, 3, 0, parent);
-//		List<Combo> path = Node.getPath(parent);
+//		List<ScoredMove> path = Node.getPath(parent);
 //		for (int i = 0; i< path.size(); i++){
 //			System.out.print(path.get(i).move + " : " + path.get(i).score);
 //			System.out.print(" --> ");
@@ -134,7 +134,7 @@ public class MyAi implements Ai {
 				}
 			}
 		}
-		// List of Combo with moves that lead to best state/situation in 3 levels
+		// List of scoredMove with moves that lead to best state/situation in 3 levels
 		List<scoredMove> path = Node.getPath(parent);
 		for (int i = 0; i< path.size(); i++){
 			System.out.print(path.get(i).move + " : " + path.get(i).score);
@@ -223,7 +223,7 @@ public class MyAi implements Ai {
 		return scoredMoves.get(0).move;
 	}
 
-	// Scoring function that returns a list of class Combo which contains move and score for mrX moves
+	// Scoring function that returns a list of class scoredMove which contains move and score for mrX moves
 	private List<scoredMove> score(GameSetup setup, MyGameStateFactory.MyGameState state){
 		ImmutableSet<Move> moves = state.getAvailableMoves();
 		List<scoredMove> track = new ArrayList<>();
@@ -389,24 +389,24 @@ class Node {
 	}
 
 	// Finds largest node at each level, runs recursively
-	static void findLargeNodes(Node node, List<MyAi.scoredMove> large, int depth){
+	static void findLargeNodes(Node node, List<MyAi.scoredMove> largest, int depth){
 		// Termination case when no more children nodes, goes back to parent node
 		if (node == null) return;
 
 		// Fills up list first with left most node all the way to bottom level
-		if (large.size() == depth) large.add(node.scoredMove);
+		if (largest.size() == depth) {
+			largest.add(node.scoredMove);
+		}
 		// Then traverses through each children node
 		else{
 			// If given node in list is already larger than given node then resets back to node from list
-			if (large.get(depth).score >= node.scoredMove.score) large.set(depth, large.get(depth));
-			// Else replaces it with given input node
-			else large.set(depth, node.scoredMove);
+			if (node.scoredMove.score >= largest.get(depth).score) largest.set(depth, node.scoredMove);
 		}
 
 		// Iterates through all the children node and recalls function recursively so that it traverses
 		// through entire tree
 		for (int i = 0; i < node.children.size(); i++){
-			findLargeNodes(node.children.get(i), large,depth+1);
+			findLargeNodes(node.children.get(i), largest,depth+1);
 		}
 	}
 
@@ -415,7 +415,7 @@ class Node {
 		// if given node is null, then returns back to parent node to traverse to other nodes
 		if (node == null) return false;
 
-		// Adds node Combo data to path first
+		// Adds node scoredMove data to path first
 		path.add(node.scoredMove);
 
 		// Checks if its wanted node (largest lowest level node) and return true
