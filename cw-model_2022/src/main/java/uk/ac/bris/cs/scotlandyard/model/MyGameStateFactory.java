@@ -219,6 +219,7 @@ public final class MyGameStateFactory implements Factory<GameState> {
 					players.add(curr);
 					mrX = mrX.give(move.tickets());
 				}
+				// if player is not moving we add it to this set to reset for new round
 				else remainingPieces.add(curr.piece());
 			}
 

@@ -10,10 +10,6 @@
         <module name="cw-model" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="cw-ai" target="17" />
-      <module name="cw-model" target="17" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
